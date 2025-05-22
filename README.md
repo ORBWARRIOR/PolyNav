@@ -31,6 +31,10 @@ TBD
 
     Toggle "Dynamic Obstacles" to add/remove obstacles during path execution.
 
+4. Layered Visual:
+
+    See all views simultaneously or mix and match
+
 ## License
 
     Apache 2.0
