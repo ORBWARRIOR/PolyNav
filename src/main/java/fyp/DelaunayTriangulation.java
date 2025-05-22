@@ -36,6 +36,7 @@ public class DelaunayTriangulation {
         remapToOriginalSize(remapFactors);
     }
 
+    //TO DO
     private void binSort(List<Point> mapOfPoints) {
         int n = (int) Math.sqrt(mapOfPoints.size());
         double binSize = 1.0 / n;
@@ -115,6 +116,7 @@ public class DelaunayTriangulation {
         return workingMapOfPoints;
     }
 
+    //TO DO
     private boolean checkDelaunay(List<Point> workingMapOfPoints) {
         // Check if the points are in the circumcircle of the previous triangles
         for (int i = 0; i < triangles.size(); i++) {
