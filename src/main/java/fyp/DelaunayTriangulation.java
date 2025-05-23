@@ -39,8 +39,17 @@ public class DelaunayTriangulation {
     //TO DO
     private void binSort(List<Point> mapOfPoints) {
         int n = (int) Math.sqrt(mapOfPoints.size());
+        // Ensure n is even
+        if (n % 2 == 1) n++;
         double binSize = 1.0 / n;
-        List<List<Point>> bins = new ArrayList<>(n);
+        List<List<Point>> bins = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            List<Point> bin = new ArrayList<>();
+            
+        }
+        
+        
+
     }
     
     /**
