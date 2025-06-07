@@ -2,15 +2,26 @@ package fyp;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Queue;
+import java.util.Stack;
 
+/**
+ * Implements the Delaunay triangulation algorithm for a given point cloud. It
+ * sorts the points into bins and processes them in snake-like pattern to
+ * create triangles while maintaining the Delaunay condition.
+ */
 public class DelaunayTriangulation {
 
-    private List<Point> mapOfPoints;
-    private Queue<Triangle> triangles;
+    private List<Point> pointCloud;
+    private Stack<Triangle> triangles;
+    private List<Point> workingPointCloud;
 
-    public DelaunayTriangulation(List<Point> mapOfPoints) {
-        this.mapOfPoints = mapOfPoints; 
+    /**
+     * Constructor for the DelaunayTriangulation class
+     * 
+     * @param pointCloud the list of points to be triangulated
+     */
+    public DelaunayTriangulation(List<Point> pointCloud) {
+        this.pointCloud = pointCloud;
     }
 
     /**
@@ -18,45 +29,98 @@ public class DelaunayTriangulation {
      */
     public void triangulate() {
         double[] remapFactors = remapToUnitSq();
-        binSort(mapOfPoints);
-        List<Point> workingMapOfPoints = new ArrayList<>(makeSuperTriangle());
-        
-        for (int i = 0; i < mapOfPoints.size(); i++) {
-            workingMapOfPoints.add(mapOfPoints.get(i));
-            if (checkDelaunay(workingMapOfPoints)) {
-                makeTriangles(workingMapOfPoints);
-            } else {
-                maintainDelaunay(workingMapOfPoints);
-                
-            }
-        }
-
-
-
+        constructTriangulation();
         remapToOriginalSize(remapFactors);
     }
 
-    //TO DO
-    private void binSort(List<Point> mapOfPoints) {
-        int n = (int) Math.sqrt(mapOfPoints.size());
-        // Ensure n is even
-        if (n % 2 == 1) n++;
-        double binSize = 1.0 / n;
-        List<List<Point>> bins = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            List<Point> bin = new ArrayList<>();
-            
+    private void constructTriangulation() {
+        List<List<Point>> bins = binSort(pointCloud);
+        makeSuperTriangle();
+        for (int i = 0; i < bins.size(); i++) {
+            List<Point> bin = bins.get(i);
+            for (int j = 0; j < bin.size(); j++) {
+                workingPointCloud.add(bin.get(i));
+                locateWhichTrianglePointIsIn();
+                makeTriangles();
+                if (!checkDelaunayProperty()) {
+                    maintainDelaunay();
+                }
+            }
         }
-        
-        
-
     }
-    
-    /**
-     * Function to find the scale of the points and remap them to a unit square
-     * 
-     * @return double[] array containing the scale factor and translation factor
-     */
+
+    private List<List<Point>> binSort(List<Point> pointCloud) {
+        int gridLength = determineGridLength();
+        double binSize = 1.0 / gridLength;
+        List<List<List<Point>>> bins = initiliseBins(gridLength);
+        assignPointsToBins(bins, gridLength, binSize);
+        return flattenBins(bins, gridLength);
+    }
+
+    private int determineGridLength() {
+        int n = (int) Math.sqrt(pointCloud.size());
+        if (n % 2 == 1) {
+            n++; // Ensure n is even
+        }
+        return n;
+    }
+
+    private List<List<List<Point>>> initiliseBins(int gridLength) {
+        List<List<List<Point>>> bins = new ArrayList<>();
+        for (int y = 0; y < gridLength; y++) {
+            List<List<Point>> row = new ArrayList<>();
+            for (int x = 0; x < gridLength; x++) {
+                row.add(new ArrayList<>());
+            }
+            bins.add(row);
+        }
+        return bins;
+    }
+
+    private void assignPointsToBins( List<List<List<Point>>> bins, int gridLength, double binSize) {
+        List<Point> temporaryPointCloud = new ArrayList<>(initialSort());
+        for (Point point : temporaryPointCloud) {
+            // Calculate x and y bins
+            int xBin = (int) (point.x / binSize);
+            int yBin = gridLength - 1 - (int) (point.y / binSize);
+            xBin = Math.min(xBin, gridLength - 1);
+            yBin = Math.min(yBin, gridLength - 1);
+
+            // Reverse x direction for odd rows (snake pattern)
+            if (yBin % 2 == 1) {
+                xBin = gridLength - 1 - xBin;
+            }
+            bins.get(yBin).get(xBin).add(point);
+        }
+    }
+
+    private List<Point> initialSort() {
+        // Sort by ascending y (bottom to top) and descending x (right to left)
+        pointCloud.sort((p1, p2) -> {
+            int cmpY = Double.compare(p1.y, p2.y); // Ascending y (prioritize lower y = bottom rows)
+            if (cmpY != 0)
+                return cmpY;
+            return Double.compare(p2.x, p1.x); // Descending x (rightmost first)
+        });
+        return pointCloud;
+    }
+
+    private List<List<Point>> flattenBins(List<List<List<Point>>> bins, int gridLength) {
+        List<List<Point>> flattenedBins = new ArrayList<>();
+        for (int y = 0; y < gridLength; y++) {
+            List<List<Point>> row = bins.get(y);
+            if (y % 2 == 0) {
+                flattenedBins.addAll(row); // Even row: left-to-right
+            } else {
+                // Reverse the row for odd rows
+                for (int x = row.size() - 1; x >= 0; x--) {
+                    flattenedBins.add(row.get(x));
+                }
+            }
+        }
+        return flattenedBins;
+    }
+
     private double[] remapToUnitSq() {
         double minX = Double.MAX_VALUE;
         double minY = Double.MAX_VALUE;
@@ -64,9 +128,9 @@ public class DelaunayTriangulation {
         double maxY = Double.MIN_VALUE;
 
         // Find the min and max x and y values
-        for (int i = 0; i < mapOfPoints.size(); i++) {
-            double x = mapOfPoints.get(i).x;
-            double y = mapOfPoints.get(i).y;
+        for (int i = 0; i < pointCloud.size(); i++) {
+            double x = pointCloud.get(i).x;
+            double y = pointCloud.get(i).y;
             if (x < minX) {
                 minX = x;
             } else if (x > maxX) {
@@ -79,7 +143,7 @@ public class DelaunayTriangulation {
             }
         }
 
-        //Set the scale to the largest range (min is 1)
+        // Set the scale to the largest range (min is 1)
         double scale = maxX - minX;
         if (maxY - minY > scale) {
             scale = maxY - minY;
@@ -89,9 +153,9 @@ public class DelaunayTriangulation {
         }
 
         // Remap the points to a unit square
-        for (int i = 0; i < mapOfPoints.size(); i++) {
-            mapOfPoints.get(i).x = (mapOfPoints.get(i).x - minX) / scale;
-            mapOfPoints.get(i).y = (mapOfPoints.get(i).y - minY) / scale;
+        for (int i = 0; i < pointCloud.size(); i++) {
+            pointCloud.get(i).x = (pointCloud.get(i).x - minX) / scale;
+            pointCloud.get(i).y = (pointCloud.get(i).y - minY) / scale;
         }
         double[] remapFactors = new double[3];
         remapFactors[0] = scale;
@@ -100,53 +164,49 @@ public class DelaunayTriangulation {
         return remapFactors;
     }
 
-    /**
-     * Remap the points back to their original size
-     * @param mapOfPoints the list of points to be remapped
-     * @param remapFactors the scale and translation factors
-     */
     private void remapToOriginalSize(double[] remapFactors) {
-        for (int i = 0; i < mapOfPoints.size(); i++) {
-            mapOfPoints.get(i).x = (mapOfPoints.get(i).x * remapFactors[0]) + remapFactors[1];
-            mapOfPoints.get(i).y = (mapOfPoints.get(i).y * remapFactors[0]) + remapFactors[2];
+        for (int i = 0; i < workingPointCloud.size(); i++) {
+            workingPointCloud.get(i).x = (workingPointCloud.get(i).x * remapFactors[0]) + remapFactors[1];
+            workingPointCloud.get(i).y = (workingPointCloud.get(i).y * remapFactors[0]) + remapFactors[2];
         }
     }
 
-    public List<Point> makeSuperTriangle() {
-        Point p1 = new Point(0, 10);
-        Point p2 = new Point(-10, -10);
-        Point p3 = new Point(10, 10);
-        Triangle superTriangle = new Triangle(p1, p2, p3);
-        triangles.add(superTriangle);
-        List<Point> workingMapOfPoints = new ArrayList<>();
-        workingMapOfPoints.add(p1);
-        workingMapOfPoints.add(p2);
-        workingMapOfPoints.add(p3);
-        return workingMapOfPoints;
+    private void makeSuperTriangle() {
+        Point p1 = new Point(0, 25);
+        Point p2 = new Point(-20, -15);
+        Point p3 = new Point(20, -15);
+        triangles.push(new Triangle(p1, p2, p3));
+        workingPointCloud = new ArrayList<>();
+        workingPointCloud.add(p1);
+        workingPointCloud.add(p2);
+        workingPointCloud.add(p3);
     }
 
-    //TO DO
-    private boolean checkDelaunay(List<Point> workingMapOfPoints) {
-        // Check if the points are in the circumcircle of the previous triangles
-        for (int i = 0; i < triangles.size(); i++) {
-            Triangle triangle = triangles.poll();
-            Point p1 = triangle.getP1();
-            Point p2 = triangle.getP2();
-            Point p3 = triangle.getP3();
-
-            if (distanceToCircumcenter < circumRadius) {
-                return false;
+    private void locateWhichTrianglePointIsIn() {
+        Point point = workingPointCloud.getLast();
+        Triangle triangleThatPointIsIn = null;
+        //will always empty the stack except for the super triangle
+        while (triangles.size() > 1) {
+            Triangle triangle = triangles.pop();
+            if (triangleThatPointIsIn == null && triangle.containsPoint(point)) {
+                triangleThatPointIsIn = triangle;
             }
         }
-        // Check if the points are in the circumcircle of the super triangle
+        if (triangleThatPointIsIn != null) {
+            triangles.push(triangleThatPointIsIn);
+        }
+    }
+
+    private void makeTriangles() {
+        Triangle triangle = triangles.pop();
+        
+    }
+
+    private boolean checkDelaunayProperty() {
         return true;
     }
 
-    private void makeTriangles(List<Point> workingMapOfPoints) {
-        
-    }
+    private void maintainDelaunay() {
 
-    private void maintainDelaunay(List<Point> workingMapOfPoints) {
-        
     }
 }
