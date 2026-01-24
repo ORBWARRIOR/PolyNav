@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "fyp.generated";
+option java_outer_classname = "PolyNavProto";
+option go_package = "github.com/ORBWARRIOR/PolyNav/backend/pkg/proto";
+
+package polynav;
+
+// Basic geometric point
+message Point {
+    double x = 1;
+    double y = 2;
+}
+
+// An obstacle defined by a series of points (polygon)
+message Obstacle {
+    repeated Point points = 1;
+}
+
+// Map data containing all obstacles and start/goal points
+message MapData {
+    repeated Obstacle obstacles = 1;
+    Point start = 2;
+    Point goal = 3;
+}
+
+// Result of a triangulation request
+message Triangle {
+    Point a = 1;
+    Point b = 2;
+    Point c = 3;
+}
+
+message TriangulationResult {
+    repeated Triangle triangles = 1;
+}
+
+// Geometry and Path Planning Service
+service GeometryService {
+    // Perform Delaunay Triangulation on a set of points (obstacles)
+    rpc Triangulate(MapData) returns (TriangulationResult);
+
+    // Persist map data to the database
+    rpc SaveMap(MapData) returns (SaveMapResponse);
+}
+
+message SaveMapResponse {
+    bool success = 1;
+    string message = 2;
+    string map_id = 3;
+}
