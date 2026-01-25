@@ -3,6 +3,7 @@ package algo
 import (
 	"errors"
 	"math"
+	"sort"
 )
 
 // NewDelaunay initialises the mesh with a Super Triangle ensuring convex hull coverage.
@@ -13,6 +14,12 @@ func NewDelaunay(points []Point) (*Delaunay, error) {
 		return nil, errors.New("insufficient points (needs 3+ unique points)")
 
 	}
+
+	// OPTIMIZATION: "Unideminsional Sorting"
+	// Sorting by X-coordinate improves spatial locality for the walking search,
+	// keeping the runtime closer to O(N^5/4) without implementing full binning.
+	sort.Slice(uniquePoints, func(i, j int) bool { return uniquePoints[i].X < uniquePoints[j].X })
+
 	// Preallocate with factor 2*N (See docs/MATHEMATICS.md#4-memory-allocation-eulers-formula)
 	d := &Delaunay{
 		Points:    make([]Point, 0, len(uniquePoints)+3),
