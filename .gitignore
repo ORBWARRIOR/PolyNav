@@ -25,4 +25,4 @@ Thumbs.db
 # PolyNav specific
 out/
 
-backend/bin/
+backend/build/
