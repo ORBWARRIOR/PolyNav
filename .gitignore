@@ -22,7 +22,9 @@ target/
 .DS_Store
 Thumbs.db
 
-# PolyNav specific
-out/
+# GeoJSON debug files
+*.geojson
 
+# Build directories
+frontend/build/
 backend/build/
