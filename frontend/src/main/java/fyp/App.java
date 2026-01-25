@@ -5,6 +5,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import java.util.ArrayList;
 
 import java.io.IOException;
 
@@ -32,7 +33,34 @@ public class App extends Application {
     }
 
     public static void main(String[] args) {
-        launch();
+        //launch();
+        // Test 1
+        ArrayList<Point> test1 = new ArrayList<>();
+        test1.add(new Point(0, 7));
+        test1.add(new Point(-5, 5));
+        test1.add(new Point(5, 5));
+        test1.add(new Point(-2, 3));
+        test1.add(new Point(3, 1));
+        test1.add(new Point(-4, -1));
+        test1.add(new Point(1, -2));
+        test1.add(new Point(-6, -4));
+        test1.add(new Point(5, -4));
+
+        DelaunayTriangulation dt = new DelaunayTriangulation(test1);
+        dt.triangulate();
+
+        // Test 2
+        /*ArrayList<Point> test2 = new ArrayList<>();
+        test2.add(new Point(1, 1));
+        test2.add(new Point(3, 4));
+        test2.add(new Point(-2, 3));
+        test2.add(new Point(-2, 2));
+        test2.add(new Point(-1, -1));
+        test2.add(new Point(-2, -3));
+        test2.add(new Point(4, -2));
+
+        dt = new DelaunayTriangulation(test2);
+        dt.triangulate();*/
     }
 
 }
