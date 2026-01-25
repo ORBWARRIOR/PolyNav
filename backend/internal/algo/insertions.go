@@ -1,6 +1,8 @@
 package algo
 
-// insertPoint implements Sloan's optimized insertion.
+import "math"
+
+// insertPoint implements Sloan's optimised insertion.
 func (d *Delaunay) insertPoint(pIdx int) {
 	p := d.Points[pIdx]
 
@@ -9,7 +11,7 @@ func (d *Delaunay) insertPoint(pIdx int) {
 	tIdx := d.walkLocate(p, d.lastCreated)
 
 	if tIdx == -1 {
-		// Fallback for robustness: linear scan (should rarely trigger)
+		// Fallback: linear scan
 		for i, t := range d.Triangles {
 			if t.Active && d.contains(i, p) {
 				tIdx = i
@@ -20,10 +22,28 @@ func (d *Delaunay) insertPoint(pIdx int) {
 
 	if tIdx == -1 {
 		return
-	} // Point outside super-triangle (fatal logic error)
+	} // Point outside super-triangle
 
-	// 2. Split Triangle into 3
+	// 2. Robustness Check: Degenerate Geometry
+	// Check if point P lies on any edge of the found triangle.
+	// Creating a triangle with area ~0 will cause NaN circumcenters.
+
 	t := d.Triangles[tIdx]
+	pA, pB, pC := d.Points[t.A], d.Points[t.B], d.Points[t.C]
+
+	// orient2d returns ~0 if collinear.
+	if math.Abs(d.orient2d(pA, pB, p)) < EPSILON ||
+		math.Abs(d.orient2d(pB, pC, p)) < EPSILON ||
+		math.Abs(d.orient2d(pC, pA, p)) < EPSILON {
+		// DEGENERATE CASE: Point is on an existing edge.
+		// Handling this correctly requires a 1-to-4 split (Edge Split).
+		// For now, to prevent crashing, we REJECT this point.
+		return
+	}
+
+	// 3. Split Triangle into 3
+	// Mark old triangle as inactive
+
 	d.Triangles[tIdx].Active = false
 
 	a, b, c := t.A, t.B, t.C
@@ -73,13 +93,12 @@ func (d *Delaunay) insertPoint(pIdx int) {
 // Complexity: O(N^0.5) average, vs O(N) linear.
 func (d *Delaunay) walkLocate(p Point, startIdx int) int {
 	curr := startIdx
-	// Guard against infinite loops in degenerate geometry with a max step count
-	limit := len(d.Triangles)
+	limit := len(d.Triangles) // Safety brake
 
 	for k := 0; k < limit; k++ {
 		if !d.Triangles[curr].Active {
 			// If we land on a dead triangle (rare in standard walk, but possible in edge cases),
-			// revert to linear scan or robust fallback.
+			// revert to linear scan.
 			return -1
 		}
 
@@ -109,7 +128,7 @@ func (d *Delaunay) walkLocate(p Point, startIdx int) int {
 			}
 			curr = t.T3
 		} else {
-			// P is left of all edges -> Inside.
+			// P is left of or ON all edges -> Inside.
 			return curr
 		}
 	}
@@ -192,7 +211,7 @@ func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 		d.updateNeighbor(nT1, nIdx, tIdx)
 		d.updateNeighbor(tT2, tIdx, nIdx)
 
-		// Recursive Legalize
+		// Recursive Legalise
 		d.legaliseEdge(tIdx, nT1)
 		d.legaliseEdge(tIdx, tT3)
 		d.legaliseEdge(nIdx, nT2)
