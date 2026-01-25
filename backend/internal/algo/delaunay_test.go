@@ -30,15 +30,17 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 				{0, 0}, {10, 0}, {5, 10}, // Base Triangle
 				{5, 0}, // Exact midpoint of bottom edge
 			},
-			expectMinTris: 1,
-			expectMaxTris: 1,
+			// With sorting, (5,0) is inserted before (10,0), so it's not "on edge" yet.
+			// It becomes a valid vertex. Total 4 valid points -> 2 triangles.
+			expectMinTris: 2,
+			expectMaxTris: 2,
 		},
 		{
 			name: "Simple Square with Center",
 			points: []Point{
 				{0, 0}, {10, 0}, {10, 10}, {0, 10}, {5, 5},
 			},
-			expectMinTris: 2, // Center (5,5) might be on edge of diagonal if split first, or just 2 triangles if hull
+			expectMinTris: 4,
 			expectMaxTris: 4,
 		},
 		{
@@ -54,9 +56,8 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 			points: []Point{
 				{0, 0}, {10, 0}, {5, 5}, {5, 0},
 			},
-			// (5,5) processed first with (0,0),(10,0) -> 1 triangle.
-			// (5,0) then rejected as it's on edge.
-			expectMinTris: 1,
+			// With sorting, (5,0) processed before (10,0). Valid mesh.
+			expectMinTris: 2,
 			expectMaxTris: 2,
 		},
 		{
@@ -66,12 +67,9 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 				{0, 5}, {5, 5}, {10, 5},
 				{0, 10}, {5, 10}, {10, 10},
 			},
-			// 3x3 grid of points makes 2x2 grid of squares = 4 squares
-			// Each square is 2 triangles -> 8 triangles
 			expectMinTris: 8,
 			expectMaxTris: 8,
-		},
-	}
+		}}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -93,13 +91,13 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 
 func TestDelaunayRandomStress(t *testing.T) {
 	t.Parallel()
-	r := rand.New(rand.NewSource(42))
-	count := 1000
+	r := rand.New(rand.NewSource(314159265))
+	count := 100000
 	points := make([]Point, count)
 	for i := 0; i < count; i++ {
 		points[i] = Point{
-			X: r.Float64() * 1000,
-			Y: r.Float64() * 1000,
+			X: r.Float64() * float64(count),
+			Y: r.Float64() * float64(count),
 		}
 	}
 
@@ -111,7 +109,9 @@ func TestDelaunayRandomStress(t *testing.T) {
 	d.Triangulate()
 	duration := time.Since(start)
 
-	t.Logf("Triangulated %d points in %v", count, duration) // Expects 1-2ms for 1000 points
+	t.Logf("Triangulated %d points in %v", count, duration)
+	// Expects 2-7ms for 1000 points
+	// Expects 0.5-2.5s for 100,000 points
 
 	// Euler's formula approximation for Delaunay: ~2N triangles
 	// We allow some variance due to hull size
@@ -133,28 +133,5 @@ func TestDelaunayDebugOutput(t *testing.T) {
 	json := d.DebugJSON()
 	if len(json) < 10 {
 		t.Error("Debug JSON output is too short")
-	}
-}
-
-// BenchmarkDelaunay measures performance of the triangulation
-func BenchmarkDelaunay(b *testing.B) {
-	// 1000 points expects ~1.4ms
-	r := rand.New(rand.NewSource(1337))
-	count := 1000
-	points := make([]Point, count)
-	for i := 0; i < count; i++ {
-		points[i] = Point{
-			X: r.Float64() * 1000,
-			Y: r.Float64() * 1000,
-		}
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		d, err := NewDelaunay(points)
-		if err != nil {
-			b.Fatalf("Failed to initialise: %v", err)
-		}
-		d.Triangulate()
 	}
 }
