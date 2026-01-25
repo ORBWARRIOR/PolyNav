@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+// Helper to reduce boilerplate
+func runTriangulation(t *testing.T, points []Point) *Delaunay {
+	d, err := NewDelaunay(points)
+	if err != nil {
+		t.Fatalf("Failed to initialise: %v", err)
+	}
+	d.Triangulate()
+	return d
+}
+
 func TestDelaunayTriangulateScenarios(t *testing.T) {
 	t.Parallel() // Allow running in parallel with other tests
 
@@ -74,12 +84,7 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			d, err := NewDelaunay(tt.points)
-			if err != nil {
-				t.Fatalf("Failed to initialise: %v", err)
-			}
-
-			d.Triangulate()
+			d := runTriangulation(t, tt.points)
 
 			if len(d.Triangles) < tt.expectMinTris || len(d.Triangles) > tt.expectMaxTris {
 				t.Errorf("Triangle count mismatch. Got %d, want between %d and %d",
@@ -102,11 +107,7 @@ func TestDelaunayRandomStress(t *testing.T) {
 	}
 
 	start := time.Now()
-	d, err := NewDelaunay(points)
-	if err != nil {
-		t.Fatalf("Failed to initialise: %v", err)
-	}
-	d.Triangulate()
+	d := runTriangulation(t, points)
 	duration := time.Since(start)
 
 	t.Logf("Triangulated %d points in %v", count, duration)
@@ -124,14 +125,116 @@ func TestDelaunayDebugOutput(t *testing.T) {
 	t.Parallel()
 
 	points := []Point{{0, 0}, {10, 0}, {5, 10}}
-	d, err := NewDelaunay(points)
-	if err != nil {
-		t.Fatalf("Failed to initialise: %v", err)
-	}
-	d.Triangulate()
+	d := runTriangulation(t, points)
 
 	json := d.DebugJSON()
 	if len(json) < 10 {
 		t.Error("Debug JSON output is too short")
 	}
+}
+
+const TestEpsilon = 1e-9
+
+func TestDegeneracyDuplicatePoints(t *testing.T) {
+	rawPoints := []Point{
+		{X: 10.0, Y: 10.0},
+		{X: 10.0, Y: 10.0},
+		{X: 10.0 + 1e-10, Y: 10.0},
+		{X: 10.0, Y: 10.0 - 1e-10},
+		{X: 20.0, Y: 20.0},
+		{X: 0.0, Y: 0.0},
+	}
+
+	d := runTriangulation(t, rawPoints)
+
+	expectedPoints := 3 + 3
+	if len(d.Points) != expectedPoints {
+		t.Errorf("Deduplication failure. Expected %d points, got %d.", expectedPoints, len(d.Points))
+	}
+}
+
+func TestDegeneracyCollinearStress(t *testing.T) {
+	points := []Point{
+		{0, 0}, {10, 0}, {5, 10},
+	}
+	for i := 1; i < 10; i++ {
+		points = append(points, Point{X: float64(i), Y: 0})
+	}
+	for i := 1; i < 5; i++ {
+		points = append(points, Point{X: 5, Y: float64(i)})
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("PANIC during collinear insertion: %v", r)
+		}
+	}()
+
+	d := runTriangulation(t, points)
+
+	activeCount := 0
+	for _, tr := range d.Triangles {
+		if tr.Active {
+			activeCount++
+		}
+	}
+	if activeCount == 0 {
+		t.Error("Triangulation resulted in 0 active triangles.")
+	}
+}
+
+func TestDegeneracyLargeCoordinates(t *testing.T) {
+	offset := 1_000_000.0
+	points := []Point{
+		{X: offset + 0, Y: offset + 0},
+		{X: offset + 10, Y: offset + 0},
+		{X: offset + 5, Y: offset + 10},
+		{X: offset + 5, Y: offset + 5},
+	}
+
+	done := make(chan bool)
+	go func() {
+		// Can't easily use helper here inside goroutine if we want to catch Fatalf on t?
+		// Actually t.Fatalf works from goroutine but stops that goroutine.
+		// Use helper is fine.
+		runTriangulation(t, points)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout: Triangulation stuck.")
+	}
+}
+
+func TestDegeneracyGrid(t *testing.T) {
+	var points []Point
+	for x := 0; x < 10; x++ {
+		for y := 0; y < 10; y++ {
+			points = append(points, Point{float64(x), float64(y)})
+		}
+	}
+
+	d := runTriangulation(t, points)
+
+	if len(d.Triangles) < 100 {
+		t.Errorf("Grid triangulation suspiciously small: %d triangles", len(d.Triangles))
+	}
+}
+
+func TestRegressionStackOverflow(t *testing.T) {
+	count := 5000
+	points := make([]Point, count)
+	for i := 0; i < count; i++ {
+		x := float64(i)
+		y := x * x * 0.001
+		points[i] = Point{x, y}
+	}
+
+	rand.New(rand.NewSource(42)).Shuffle(len(points), func(i, j int) {
+		points[i], points[j] = points[j], points[i]
+	})
+
+	runTriangulation(t, points)
 }
