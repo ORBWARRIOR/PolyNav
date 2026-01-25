@@ -81,12 +81,28 @@ func (d *Delaunay) Triangulate() {
 
 // deduplicatePoints removes exact coordinate matches.
 func deduplicatePoints(points []Point) []Point {
-	seen := make(map[Point]bool)
-	var result []Point
-	for _, p := range points {
-		if !seen[p] {
-			seen[p] = true
-			result = append(result, p)
+	if len(points) == 0 {
+		return nil
+	}
+	// 1. Sort points to make close points adjacent
+	sorted := make([]Point, len(points))
+	copy(sorted, points)
+	sort.Slice(sorted, func(i, j int) bool {
+		if math.Abs(sorted[i].X-sorted[j].X) > EPSILON {
+			return sorted[i].X < sorted[j].X
+		}
+		return sorted[i].Y < sorted[j].Y
+	})
+
+	result := make([]Point, 0, len(points))
+	result = append(result, sorted[0])
+
+	for i := 1; i < len(sorted); i++ {
+		curr := sorted[i]
+		prev := result[len(result)-1]
+		// 2. Epsilon check
+		if math.Abs(curr.X-prev.X) > EPSILON || math.Abs(curr.Y-prev.Y) > EPSILON {
+			result = append(result, curr)
 		}
 	}
 	return result
