@@ -5,25 +5,27 @@ import (
 	"math"
 )
 
-// NewDelaunay initializes the mesh with a Super Triangle ensuring convex hull coverage.
+// NewDelaunay initialises the mesh with a Super Triangle ensuring convex hull coverage.
 func NewDelaunay(points []Point) (*Delaunay, error) {
-	if len(points) < 3 {
-		return nil, errors.New("insufficient points")
-	}
+	uniquePoints := deduplicatePoints(points)
 
+	if len(uniquePoints) < 3 {
+		return nil, errors.New("insufficient points (needs 3+ unique points)")
+
+	}
 	// Preallocate with factor 2*N (See docs/MATHEMATICS.md#4-memory-allocation-eulers-formula)
 	d := &Delaunay{
-		Points:    make([]Point, 0, len(points)+3),
-		Triangles: make([]Triangle, 0, len(points)*2),
+		Points:    make([]Point, 0, len(uniquePoints)+3),
+		Triangles: make([]Triangle, 0, len(uniquePoints)*2),
 	}
 
-	d.Points = append(d.Points, points...)
+	d.Points = append(d.Points, uniquePoints...)
 
 	// 1.1.2 Super Triangle (See docs/ALGORITHMS.md#11-the-super-triangle)
 	minX, minY := math.MaxFloat64, math.MaxFloat64
 	maxX, maxY := -math.MaxFloat64, -math.MaxFloat64
 
-	for _, p := range points {
+	for _, p := range uniquePoints {
 		if p.X < minX {
 			minX = p.X
 		}
@@ -68,6 +70,19 @@ func (d *Delaunay) Triangulate() {
 		d.insertPoint(i)
 	}
 	d.cleanup()
+}
+
+// deduplicatePoints removes exact coordinate matches.
+func deduplicatePoints(points []Point) []Point {
+	seen := make(map[Point]bool)
+	var result []Point
+	for _, p := range points {
+		if !seen[p] {
+			seen[p] = true
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 func (d *Delaunay) cleanup() {

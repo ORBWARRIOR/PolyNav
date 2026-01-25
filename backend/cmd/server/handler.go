@@ -36,7 +36,7 @@ func (s *server) Triangulate(ctx context.Context, in *pb.MapData) (*pb.Triangula
 
 	dt, err := algo.NewDelaunay(algoPoints)
 	if err != nil {
-		log.Printf("Delaunay initialization failed: %v", err)
+		log.Printf("Delaunay initialisation failed: %v", err)
 		return nil, err
 	}
 	dt.Triangulate()

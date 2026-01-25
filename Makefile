@@ -41,6 +41,10 @@ run-backend:
 	@echo "Running Backend..."
 	cd $(BACKEND_DIR) && go run ./cmd/main.go
 
+test-delaunay:
+	@echo "Running Delaunay test..."
+	go test -v ./backend/internal/algo/
+
 # Clean
 clean:
 	@echo "Cleaning up..."

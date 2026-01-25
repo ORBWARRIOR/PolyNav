@@ -6,7 +6,7 @@ import (
 )
 
 // DebugJSON returns the mesh in GeoJSON format for visual verification.
-// DebugJSON serializes the current mesh state to GeoJSON.
+// DebugJSON serialises the current mesh state to GeoJSON.
 func (d *Delaunay) DebugJSON() string {
 	type Geometry struct {
 		Type        string        `json:"type"`
