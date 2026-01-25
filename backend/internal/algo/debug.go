@@ -7,7 +7,7 @@ import (
 
 // DebugJSON returns the mesh in GeoJSON format for visual verification.
 // DebugJSON serialises the current mesh state to GeoJSON.
-func (d *Delaunay) DebugJSON() string {
+func (d *Delaunay) DebugJSON() (string, error) {
 	type Geometry struct {
 		Type        string        `json:"type"`
 		Coordinates [][][]float64 `json:"coordinates"`
@@ -63,7 +63,7 @@ func (d *Delaunay) DebugJSON() string {
 
 	bytes, err := json.MarshalIndent(fc, "", "  ")
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return fmt.Sprintf(`{"error": "%s"}`, err.Error()), err
 	}
-	return string(bytes)
+	return string(bytes), nil
 }

@@ -1,7 +1,9 @@
 package algo
 
 import (
+	"fmt"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 )
@@ -90,6 +92,7 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 				t.Errorf("Triangle count mismatch. Got %d, want between %d and %d",
 					len(d.Triangles), tt.expectMinTris, tt.expectMaxTris)
 			}
+			saveDebugGeoJSON(d, fmt.Sprintf("./savedTests/debug_%s.geojson", tt.name))
 		})
 	}
 }
@@ -127,10 +130,14 @@ func TestDelaunayDebugOutput(t *testing.T) {
 	points := []Point{{0, 0}, {10, 0}, {5, 10}}
 	d := runTriangulation(t, points)
 
-	json := d.DebugJSON()
+	json, err := d.DebugJSON()
+	if err != nil {
+		t.Fatalf("Failed to generate debug JSON: %v", err)
+	}
 	if len(json) < 10 {
 		t.Error("Debug JSON output is too short")
 	}
+	saveDebugGeoJSON(d, "./savedTests/debug_simple_triangle.geojson")
 }
 
 const TestEpsilon = 1e-9
@@ -151,6 +158,7 @@ func TestDegeneracyDuplicatePoints(t *testing.T) {
 	if len(d.Points) != expectedPoints {
 		t.Errorf("Deduplication failure. Expected %d points, got %d.", expectedPoints, len(d.Points))
 	}
+	saveDebugGeoJSON(d, "./savedTests/debug_duplicate_points.geojson")
 }
 
 func TestDegeneracyCollinearStress(t *testing.T) {
@@ -237,4 +245,18 @@ func TestRegressionStackOverflow(t *testing.T) {
 	})
 
 	runTriangulation(t, points)
+}
+
+func saveDebugGeoJSON(d *Delaunay, filename string) {
+	// Check the exact signature in debug.go, but typically:
+	data, err := d.DebugJSON()
+	if err != nil {
+		panic(err)
+	}
+
+	// Save to a file
+	if err := os.WriteFile(filename, []byte(data), 0644); err != nil {
+		panic(err)
+	}
+	fmt.Printf("Exported debug mesh to %s\n", filename)
 }
