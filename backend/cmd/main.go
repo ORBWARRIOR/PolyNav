@@ -10,8 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const webAddress = ":50051"
-
 func main() {
 	if err := setup(); err != nil {
 		log.Err(err).Msg("server failed, exiting with code 1")
@@ -27,6 +25,11 @@ func setup() (err error) {
 			log.Info().Msg("stopping")
 		}
 	}()
+
+	webAddress := os.Getenv("GRPC_PORT")
+	if webAddress == "" {
+		webAddress = ":50051"
+	}
 
 	grpcServer, err := server.NewServer()
 	if err != nil {
