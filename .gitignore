@@ -28,3 +28,6 @@ Thumbs.db
 # Build directories
 frontend/build/
 backend/build/
+
+# Vendor directory
+vendor/
