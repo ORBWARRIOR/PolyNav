@@ -49,5 +49,5 @@ test-delaunay:
 clean:
 	@echo "Cleaning up..."
 	cd $(FRONTEND_DIR) && mvn clean
-	cd $(BACKEND_DIR) && go clean && rm -rf bin/
+	cd $(BACKEND_DIR) && go clean && rm -rf build/
 
