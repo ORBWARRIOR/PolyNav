@@ -8,6 +8,11 @@ import (
 
 // NewDelaunay initialises the mesh with a Super Triangle ensuring convex hull coverage.
 func NewDelaunay(points []Point) (*Delaunay, error) {
+	// Input validation for NaN/Inf values
+	if err := validatePoints(points); err != nil {
+		return nil, err
+	}
+
 	uniquePoints := deduplicatePoints(points)
 
 	if len(uniquePoints) < 3 {
@@ -15,9 +20,10 @@ func NewDelaunay(points []Point) (*Delaunay, error) {
 
 	}
 
-	// OPTIMIZATION: "Unideminsional Sorting"
-	// Sorting by X-coordinate improves spatial locality for the walking search,
-	// keeping the runtime closer to O(N^5/4) without implementing full binning.
+	// OPTIMIZATION: "Unidimensional Sorting" approximates spatial binning.
+	// Sorting by X-coordinate improves walking search locality, keeping runtime
+	// closer to O(N^5/4) without implementing full binning.
+	// See docs/ALGORITHMS.md#13-deviations-from-sloans-1987-algorithm
 	sort.Slice(uniquePoints, func(i, j int) bool { return uniquePoints[i].X < uniquePoints[j].X })
 
 	// Preallocate with factor 2*N (See docs/MATHEMATICS.md#4-memory-allocation-eulers-formula)
@@ -70,7 +76,8 @@ func NewDelaunay(points []Point) (*Delaunay, error) {
 	return d, nil
 }
 
-// Triangulate executes Incremental Insertion (Lawson's Algorithm).
+// Triangulate executes Incremental Insertion with Lawson's Flip.
+// See docs/ALGORITHMS.md#1-delaunay-triangulation-strategy
 func (d *Delaunay) Triangulate() {
 	originalCount := len(d.Points) - 3
 	for i := 0; i < originalCount; i++ {
@@ -79,12 +86,25 @@ func (d *Delaunay) Triangulate() {
 	d.cleanup()
 }
 
-// deduplicatePoints removes exact coordinate matches.
+// Input validation prevents geometry predicate failures
+func validatePoints(points []Point) error {
+	for _, p := range points {
+		if math.IsNaN(p.X) || math.IsNaN(p.Y) {
+			return errors.New("point contains NaN value")
+		}
+		if math.IsInf(p.X, 0) || math.IsInf(p.Y, 0) {
+			return errors.New("point contains infinite value")
+		}
+	}
+	return nil
+}
+
+// Remove duplicate coordinates using epsilon comparison
 func deduplicatePoints(points []Point) []Point {
 	if len(points) == 0 {
 		return nil
 	}
-	// 1. Sort points to make close points adjacent
+	// Sort points to group potential duplicates
 	sorted := make([]Point, len(points))
 	copy(sorted, points)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -100,7 +120,7 @@ func deduplicatePoints(points []Point) []Point {
 	for i := 1; i < len(sorted); i++ {
 		curr := sorted[i]
 		prev := result[len(result)-1]
-		// 2. Epsilon check
+
 		if math.Abs(curr.X-prev.X) > EPSILON || math.Abs(curr.Y-prev.Y) > EPSILON {
 			result = append(result, curr)
 		}
@@ -110,12 +130,12 @@ func deduplicatePoints(points []Point) []Point {
 
 func (d *Delaunay) cleanup() {
 	var clean []Triangle
-	// Simple compaction
+	// Remove super triangle and logically deleted triangles
 	for _, t := range d.Triangles {
 		if !t.Active {
 			continue
 		}
-		// Check super vertices
+
 		isSuper := false
 		for _, idx := range []int{t.A, t.B, t.C} {
 			if idx == d.superIndices[0] || idx == d.superIndices[1] || idx == d.superIndices[2] {

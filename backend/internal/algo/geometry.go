@@ -1,6 +1,6 @@
 package algo
 
-// orient2d: Returns 2*SignedArea. Positive if CCW.
+// orient2d returns 2*SignedArea. Positive for counter-clockwise orientation.
 // See docs/MATHEMATICS.md#11-orientation-point-in-triangle
 func (d *Delaunay) orient2d(a, b, c Point) float64 {
 	return (b.X-a.X)*(c.Y-a.Y) - (b.Y-a.Y)*(c.X-a.X)
@@ -10,6 +10,8 @@ func (d *Delaunay) inCircumcircle(tIdx int, p Point) bool {
 	t := d.Triangles[tIdx]
 	a, b, c := d.Points[t.A], d.Points[t.B], d.Points[t.C]
 
+	// inCircumcircle tests if point is inside triangle's circumcircle.
+	// Uses robust determinant-based predicate to avoid explicit circumcentre calculation.
 	// See docs/MATHEMATICS.md#12-in-circle-test
 	ax, ay := a.X-p.X, a.Y-p.Y
 	bx, by := b.X-p.X, b.Y-p.Y

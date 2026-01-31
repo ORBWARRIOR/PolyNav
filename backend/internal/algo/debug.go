@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// DebugJSON returns the mesh in GeoJSON format for visual verification.
-// DebugJSON serialises the current mesh state to GeoJSON.
+// DebugJSON exports the current mesh state as GeoJSON for visualisation.
+// Useful for debugging triangulation results with GIS tools.
 func (d *Delaunay) DebugJSON() (string, error) {
 	type Geometry struct {
 		Type        string        `json:"type"`
@@ -30,7 +30,7 @@ func (d *Delaunay) DebugJSON() (string, error) {
 	}
 
 	for i, t := range d.Triangles {
-		// Skip logically deleted triangles
+
 		if !t.Active {
 			continue
 		}
@@ -39,8 +39,6 @@ func (d *Delaunay) DebugJSON() (string, error) {
 		p2 := d.Points[t.B]
 		p3 := d.Points[t.C]
 
-		// GeoJSON uses [Long, Lat] (X, Y)
-		// Polygon must close (first point == last point)
 		coords := [][][]float64{{
 			{p1.X, p1.Y},
 			{p2.X, p2.Y},
@@ -55,8 +53,8 @@ func (d *Delaunay) DebugJSON() (string, error) {
 				Coordinates: coords,
 			},
 			Properties: map[string]interface{}{
-				"id":        i,
-				"neighbors": []int{t.T1, t.T2, t.T3},
+				"id":         i,
+				"neighbours": []int{t.T1, t.T2, t.T3},
 			},
 		})
 	}
