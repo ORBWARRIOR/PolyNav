@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
-	"log"
 
 	"github.com/ORBWARRIOR/PolyNav/backend/internal/algo"
 	pb "github.com/ORBWARRIOR/PolyNav/backend/pkg/proto"
+	"github.com/rs/zerolog/log"
 )
 
 type server struct {
@@ -13,7 +13,7 @@ type server struct {
 }
 
 func (s *server) Triangulate(ctx context.Context, in *pb.MapData) (*pb.TriangulationResult, error) {
-	log.Printf("Received Triangulate request with %d obstacles", len(in.Obstacles))
+	log.Info().Int("obstacles", len(in.Obstacles)).Msg("Received Triangulate request")
 
 	var algoPoints []algo.Point
 	for _, obs := range in.Obstacles {
@@ -36,7 +36,7 @@ func (s *server) Triangulate(ctx context.Context, in *pb.MapData) (*pb.Triangula
 
 	dt, err := algo.NewDelaunay(algoPoints)
 	if err != nil {
-		log.Printf("Delaunay initialisation failed: %v", err)
+		log.Err(err).Msg("Delaunay initialisation failed")
 		return nil, err
 	}
 	dt.Triangulate()
@@ -58,6 +58,6 @@ func (s *server) Triangulate(ctx context.Context, in *pb.MapData) (*pb.Triangula
 }
 
 func (s *server) SaveMap(ctx context.Context, in *pb.MapData) (*pb.SaveMapResponse, error) {
-	log.Printf("Received SaveMap request")
+	log.Info().Msg("Received SaveMap request")
 	return &pb.SaveMapResponse{Success: true, Message: "Map saved successfully (mock)"}, nil
 }
