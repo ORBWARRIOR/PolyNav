@@ -53,4 +53,6 @@ $$ U_y = \frac{1}{D} [(A_x^2 + A_y^2)(C_x - B_x) + (B_x^2 + B_y^2)(A_x - C_x) + 
 
 ## 4. Memory Allocation (Euler's Formula)
 
-For a planar graph with $N$ vertices, the maximum number of triangles is $2N - 2 - k$ (where $k$ is the number of vertices on the convex hull). We preallocate capacity for $2N$ triangles to avoid reallocation.
+For a planar graph with $N$ vertices, the maximum number of triangles is $2N - 2 - k$ (where $k$ is the number of vertices on the convex hull). 
+
+**Optimization:** While Euler's formula gives the theoretical maximum for the *final* mesh, the incremental construction process involves temporary triangle creation and deletion (flipping). To minimize reallocation overhead, we preallocate capacity for $2.5N + 100$ triangles.
