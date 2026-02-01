@@ -2,48 +2,48 @@ package algo
 
 import "math"
 
-// insertPoint implements Sloan's optimised insertion.
+// insertPoint implements Sloan's optimised insertion with edge splitting.
+// See docs/ALGORITHMS.md#14-degeneracy-handling for edge cases.
+// See docs/ALGORITHMS.md#2-edge-flipping-lawsons-flip for legalisation.
 func (d *Delaunay) insertPoint(pIdx int) {
 	p := d.Points[pIdx]
 
-	// 1. Locate Triangle
+	// 1. Locate containing triangle using walking search
 	tIdx := d.walkLocate(p, d.lastCreated)
 
 	if tIdx == -1 {
-		// Fallback: linear scan
+		// Fallback to linear scan if walking search fails
+		tIdx = -1
 		for i, t := range d.Triangles {
 			if t.Active && d.contains(i, p) {
 				tIdx = i
 				break
 			}
 		}
+		if tIdx == -1 {
+
+			return
+		}
 	}
 
-	if tIdx == -1 {
-		return
-	}
-
-	// 2. Robustness: Check for Point on Edge
+	// 2. Handle degenerate case: point on edge
 	t := d.Triangles[tIdx]
-	pA, pB, pC := d.Points[t.A], d.Points[t.B], d.Points[t.C]
+	pA, pB, pC := d.Points[int(t.A)], d.Points[int(t.B)], d.Points[int(t.C)]
 
-	// Check edge AB
 	if math.Abs(d.orient2d(pA, pB, p)) < EPSILON {
-		d.splitEdge(pIdx, tIdx, t.T3, t.A, t.B, t.C)
+		d.splitEdge(pIdx, tIdx, int(t.T3), int(t.A), int(t.B), int(t.C))
 		return
 	}
-	// Check edge BC
 	if math.Abs(d.orient2d(pB, pC, p)) < EPSILON {
-		d.splitEdge(pIdx, tIdx, t.T1, t.B, t.C, t.A)
+		d.splitEdge(pIdx, tIdx, int(t.T1), int(t.B), int(t.C), int(t.A))
 		return
 	}
-	// Check edge CA
 	if math.Abs(d.orient2d(pC, pA, p)) < EPSILON {
-		d.splitEdge(pIdx, tIdx, t.T2, t.C, t.A, t.B)
+		d.splitEdge(pIdx, tIdx, int(t.T2), int(t.C), int(t.A), int(t.B))
 		return
 	}
 
-	// 3. Normal Split (1-to-3)
+	// 3. Normal case: point inside triangle (1-to-3 split)
 	d.Triangles[tIdx].Active = false
 
 	a, b, c := t.A, t.B, t.C
@@ -55,54 +55,51 @@ func (d *Delaunay) insertPoint(pIdx int) {
 
 	// T1: BC-P
 	d.Triangles = append(d.Triangles, Triangle{
-		A: b, B: c, C: pIdx,
-		T1: newT2Idx, T2: newT3Idx, T3: n1,
+		A: b, B: c, C: int32(pIdx),
+		T1: int32(newT2Idx), T2: int32(newT3Idx), T3: n1,
 		Active: true,
 	})
 	// T2: CA-P
 	d.Triangles = append(d.Triangles, Triangle{
-		A: c, B: a, C: pIdx,
-		T1: newT3Idx, T2: newT1Idx, T3: n2,
+		A: c, B: a, C: int32(pIdx),
+		T1: int32(newT3Idx), T2: int32(newT1Idx), T3: n2,
 		Active: true,
 	})
 	// T3: AB-P
 	d.Triangles = append(d.Triangles, Triangle{
-		A: a, B: b, C: pIdx,
-		T1: newT1Idx, T2: newT2Idx, T3: n3,
+		A: a, B: b, C: int32(pIdx),
+		T1: int32(newT1Idx), T2: int32(newT2Idx), T3: n3,
 		Active: true,
 	})
 
 	d.lastCreated = newT1Idx
 
-	d.updateNeighbor(n1, tIdx, newT1Idx)
-	d.updateNeighbor(n2, tIdx, newT2Idx)
-	d.updateNeighbor(n3, tIdx, newT3Idx)
+	d.updateNeighbor(int(n1), tIdx, newT1Idx)
+	d.updateNeighbor(int(n2), tIdx, newT2Idx)
+	d.updateNeighbor(int(n3), tIdx, newT3Idx)
 
-	d.legaliseEdge(newT1Idx, n1)
-	d.legaliseEdge(newT2Idx, n2)
-	d.legaliseEdge(newT3Idx, n3)
+	d.legaliseEdge(newT1Idx, int(n1))
+	d.legaliseEdge(newT2Idx, int(n2))
+	d.legaliseEdge(newT3Idx, int(n3))
 }
 
-// splitEdge handles the degenerate case where P is on an edge shared by T and N.
-// u, v are the vertices of the shared edge. o is the opposite vertex in T.
+// splitEdge implements 1-to-4 split for points on shared edges.
+// Detailed algorithm and edge case handling in docs/ALGORITHMS.md#14-degeneracy-handling.
 func (d *Delaunay) splitEdge(pIdx, tIdx, nIdx, u, v, o int) {
 	d.Triangles[tIdx].Active = false
 
-	// Neighbors of T
-	// We need to identify which neighbor in T corresponds to edge v-o and o-u.
-	// T is (u, v, o). Edge opposite o is uv (Neighbor N, passed as nIdx).
-	// Edge opposite u is vo. Edge opposite v is ou.
-	
-	// Re-fetch T to get neighbor indices correctly
+	// Identify neighbours for edges opposite each vertex in triangle T
+
+	// Re-fetch T to get neighbour indices correctly
 	t := d.Triangles[tIdx]
-	var n_vo, n_ou int
-	if t.A == u && t.B == v { // C is o. Edge vo is opp u (T.T1? No T.T1 opp A).
+	var n_vo, n_ou int32
+	if int(t.A) == u && int(t.B) == v { // C is o. Edge vo is opp u (T.T1? No T.T1 opp A).
 		// T: A=u, B=v, C=o.
 		// Opp A (u): edge BC (vo) -> T1
 		// Opp B (v): edge CA (ou) -> T2
 		n_vo = t.T1
 		n_ou = t.T2
-	} else if t.B == u && t.C == v { // A is o
+	} else if int(t.B) == u && int(t.C) == v { // A is o
 		// T: A=o, B=u, C=v.
 		// Opp B (u): edge CA (vo) -> T2
 		// Opp C (v): edge AB (ou) -> T3
@@ -119,45 +116,42 @@ func (d *Delaunay) splitEdge(pIdx, tIdx, nIdx, u, v, o int) {
 	// Create 2 triangles for T: (p, v, o) and (p, o, u)
 	// T1: (p, v, o). Edges: vo (n_vo), op (newT2), pv (shared with N part 2? No, pv is on split edge)
 	// We need to match orientation.
-	// T was (u, v, o) CCW.
-	// Split into (u, p, o) and (p, v, o).
-	
-	// New Indices
-	t1Idx := len(d.Triangles)     // (p, v, o)
-	t2Idx := t1Idx + 1            // (u, p, o)
-	
+	// Create 2 new triangles for T: (p, v, o) and (u, p, o)
+	t1Idx := len(d.Triangles) // (p, v, o)
+	t2Idx := t1Idx + 1        // (u, p, o)
+
 	d.Triangles = append(d.Triangles, Triangle{
-		A: pIdx, B: v, C: o,
-		T1: n_vo, T2: t2Idx, T3: -1, // T3 will be N's new tri
+		A: int32(pIdx), B: int32(v), C: int32(o),
+		T1: n_vo, T2: int32(t2Idx), T3: -1, // T3 will be N's new tri
 		Active: true,
 	})
-	
+
 	d.Triangles = append(d.Triangles, Triangle{
-		A: u, B: pIdx, C: o,
-		T1: t1Idx, T2: n_ou, T3: -1, // T3 will be N's new tri
+		A: int32(u), B: int32(pIdx), C: int32(o),
+		T1: int32(t1Idx), T2: n_ou, T3: -1, // T3 will be N's new tri
 		Active: true,
 	})
-	
+
 	d.lastCreated = t1Idx
-	d.updateNeighbor(n_vo, tIdx, t1Idx)
-	d.updateNeighbor(n_ou, tIdx, t2Idx)
+	d.updateNeighbor(int(n_vo), tIdx, t1Idx)
+	d.updateNeighbor(int(n_ou), tIdx, t2Idx)
 
 	// Handle Neighbor N
 	if nIdx != -1 {
 		d.Triangles[nIdx].Active = false
 		n := d.Triangles[nIdx]
-		
+
 		// Find o_n (opposite vertex in N)
 		// N shares edge v-u (reversed).
-		var o_n int
-		var n_uo_n, n_o_nv int
-		
-		// Identify o_n and neighbors
-		if (n.A == v && n.B == u) {
+		var o_n int32
+		var n_uo_n, n_o_nv int32
+
+		// Identify o_n and neighbours
+		if int(n.A) == v && int(n.B) == u {
 			o_n = n.C
 			n_uo_n = n.T1 // Opp v: u-o_n
 			n_o_nv = n.T2 // Opp u: o_n-v
-		} else if (n.B == v && n.C == u) {
+		} else if int(n.B) == v && int(n.C) == u {
 			o_n = n.A
 			n_uo_n = n.T2
 			n_o_nv = n.T3
@@ -166,52 +160,63 @@ func (d *Delaunay) splitEdge(pIdx, tIdx, nIdx, u, v, o int) {
 			n_uo_n = n.T3
 			n_o_nv = n.T1
 		}
-		
+
 		// Create 2 triangles for N: (p, u, o_n) and (p, o_n, v)
 		// N was (v, u, o_n) CCW.
 		// Split into (v, p, o_n) and (p, u, o_n).
-		
+
 		n1Idx := len(d.Triangles) // (p, u, o_n)
 		n2Idx := n1Idx + 1        // (v, p, o_n)
-		
+
 		// N1: (p, u, o_n). Edges: u-o_n (n_uo_n), o_n-p (n2Idx), p-u (shared with T2)
 		d.Triangles = append(d.Triangles, Triangle{
-			A: pIdx, B: u, C: o_n,
-			T1: n_uo_n, T2: n2Idx, T3: t2Idx,
+			A: int32(pIdx), B: int32(u), C: o_n,
+			T1: n_uo_n, T2: int32(n2Idx), T3: int32(t2Idx),
 			Active: true,
 		})
-		
+
 		// N2: (v, p, o_n). Edges: p-o_n (n1Idx), o_n-v (n_o_nv), v-p (shared with T1)
 		d.Triangles = append(d.Triangles, Triangle{
-			A: v, B: pIdx, C: o_n,
-			T1: n1Idx, T2: n_o_nv, T3: t1Idx,
+			A: int32(v), B: int32(pIdx), C: o_n,
+			T1: int32(n1Idx), T2: n_o_nv, T3: int32(t1Idx),
 			Active: true,
 		})
-		
-		// Link back T's undefined neighbors
-		d.Triangles[t1Idx].T3 = n2Idx
-		d.Triangles[t2Idx].T3 = n1Idx
-		
-		d.updateNeighbor(n_uo_n, nIdx, n1Idx)
-		d.updateNeighbor(n_o_nv, nIdx, n2Idx)
-		
-		d.legaliseEdge(n1Idx, n_uo_n)
-		d.legaliseEdge(n2Idx, n_o_nv)
+
+		// Link back T's undefined neighbours
+		d.Triangles[t1Idx].T3 = int32(n2Idx)
+		d.Triangles[t2Idx].T3 = int32(n1Idx)
+
+		d.updateNeighbor(int(n_uo_n), nIdx, n1Idx)
+		d.updateNeighbor(int(n_o_nv), nIdx, n2Idx)
+
+		d.legaliseEdge(n1Idx, int(n_uo_n))
+		d.legaliseEdge(n2Idx, int(n_o_nv))
 	} else {
 		// Boundary case: T3 of new triangles remains -1
 	}
 
-	d.legaliseEdge(t1Idx, n_vo)
-	d.legaliseEdge(t2Idx, n_ou)
+	d.legaliseEdge(t1Idx, int(n_vo))
+	d.legaliseEdge(t2Idx, int(n_ou))
 }
 
-// walkLocate implements the Directed Walk (Sloan's TRILOC).
-// Complexity: O(N^0.5) average, vs O(N) linear.
+// walkLocate implements Sloan's Directed Walk for point location.
+// Complexity: O(N^0.5) average vs O(N) linear scan.
+// See docs/ALGORITHMS.md#12-point-location-sloans-walk
 func (d *Delaunay) walkLocate(p Point, startIdx int) int {
+	// Validate start index bounds
+	if startIdx < 0 || startIdx >= len(d.Triangles) {
+		return -1
+	}
+
 	curr := startIdx
 	limit := len(d.Triangles) // Safety brake
 
 	for k := 0; k < limit; k++ {
+		// Validate current triangle index bounds
+		if curr < 0 || curr >= len(d.Triangles) {
+			return -1
+		}
+
 		if !d.Triangles[curr].Active {
 			// If we land on a dead triangle (rare in standard walk, but possible in edge cases),
 			// revert to linear scan.
@@ -219,30 +224,30 @@ func (d *Delaunay) walkLocate(p Point, startIdx int) int {
 		}
 
 		t := d.Triangles[curr]
-		pA, pB, pC := d.Points[t.A], d.Points[t.B], d.Points[t.C]
+		pA, pB, pC := d.Points[int(t.A)], d.Points[int(t.B)], d.Points[int(t.C)]
 
 		// Check which edge separates P from the triangle.
 		// Orientation < 0 means P is to the Right (outside).
-		// We walk toward the neighbor opposite that edge.
+		// We walk toward the neighbour opposite that edge.
 
 		if d.orient2d(pB, pC, p) < -EPSILON {
-			// P is right of BC. Move to neighbor T1.
+			// P is right of BC. Move to neighbour T1.
 			if t.T1 == -1 {
 				return curr
 			} // P is outside hull, but this is the closest boundary.
-			curr = t.T1
+			curr = int(t.T1)
 		} else if d.orient2d(pC, pA, p) < -EPSILON {
-			// P is right of CA. Move to neighbor T2.
+			// P is right of CA. Move to neighbour T2.
 			if t.T2 == -1 {
 				return curr
 			}
-			curr = t.T2
+			curr = int(t.T2)
 		} else if d.orient2d(pA, pB, p) < -EPSILON {
-			// P is right of AB. Move to neighbor T3.
+			// P is right of AB. Move to neighbour T3.
 			if t.T3 == -1 {
 				return curr
 			}
-			curr = t.T3
+			curr = int(t.T3)
 		} else {
 			// P is left of or ON all edges -> Inside.
 			return curr
@@ -251,7 +256,8 @@ func (d *Delaunay) walkLocate(p Point, startIdx int) int {
 	return -1
 }
 
-// legaliseEdge ensures Delaunay property.
+// legaliseEdge performs Lawson's Flip to restore Delaunay property.
+// See docs/ALGORITHMS.md#2-edge-flipping-lawsons-flip
 func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 	if nIdx == -1 {
 		return
@@ -260,29 +266,28 @@ func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 	t := d.Triangles[tIdx]
 	n := d.Triangles[nIdx]
 
-	// Find shared edge indices
-	// We need the vertex in N that is opposite the shared edge.
+	// Identify shared edge and opposite vertex for edge flip check
 	var nSlot int // 0, 1, 2 for A, B, C
-	if n.T1 == tIdx {
+	if int(n.T1) == tIdx {
 		nSlot = 0
-	} else if n.T2 == tIdx {
+	} else if int(n.T2) == tIdx {
 		nSlot = 1
 	} else {
 		nSlot = 2
 	}
 
 	// Vertex opposite shared edge in N
-	qIdx := [3]int{n.A, n.B, n.C}[nSlot]
-	q := d.Points[qIdx]
+	qIdx := [3]int32{n.A, n.B, n.C}[nSlot]
+	q := d.Points[int(qIdx)]
 
-	// Robust In-Circle Check
+	// Check if edge needs flipping using in-circle test
 	if d.inCircumcircle(tIdx, q) {
-		// FLIP
+		// Perform edge flip to restore Delaunay property
 		// Find shared edge vertices in T
 		var tSlot int
-		if t.T1 == nIdx {
+		if int(t.T1) == nIdx {
 			tSlot = 0
-		} else if t.T2 == nIdx {
+		} else if int(t.T2) == nIdx {
 			tSlot = 1
 		} else {
 			tSlot = 2
@@ -293,26 +298,23 @@ func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 		// N: (q, v, u) where q is opposite shared edge
 		// Result T: (p, u, q), N: (p, q, v)
 
-		// Due to the complexity of index swapping, we simply rewrite the indices
-		// consistent with CCW orientation.
-
-		// Vertices of T
-		pIdx := [3]int{t.A, t.B, t.C}[tSlot]
-		uIdx := [3]int{t.A, t.B, t.C}[(tSlot+1)%3]
-		vIdx := [3]int{t.A, t.B, t.C}[(tSlot+2)%3]
+		// Update triangle vertices and neighbours after edge flip
+		pIdx := [3]int32{t.A, t.B, t.C}[tSlot]
+		uIdx := [3]int32{t.A, t.B, t.C}[(tSlot+1)%3]
+		vIdx := [3]int32{t.A, t.B, t.C}[(tSlot+2)%3]
 
 		// Neighbors
-		nT1 := [3]int{n.T1, n.T2, n.T3}[(nSlot+1)%3] // Neighbor opp v in N
-		nT2 := [3]int{n.T1, n.T2, n.T3}[(nSlot+2)%3] // Neighbor opp u in N
-		tT2 := [3]int{t.T1, t.T2, t.T3}[(tSlot+1)%3] // Neighbor opp v in T
-		tT3 := [3]int{t.T1, t.T2, t.T3}[(tSlot+2)%3] // Neighbor opp u in T
+		nT1 := [3]int32{n.T1, n.T2, n.T3}[(nSlot+1)%3] // Neighbor opp v in N
+		nT2 := [3]int32{n.T1, n.T2, n.T3}[(nSlot+2)%3] // Neighbor opp u in N
+		tT2 := [3]int32{t.T1, t.T2, t.T3}[(tSlot+1)%3] // Neighbor opp v in T
+		tT3 := [3]int32{t.T1, t.T2, t.T3}[(tSlot+2)%3] // Neighbor opp u in T
 
 		// Update T: A=p, B=u, C=q
 		d.Triangles[tIdx].A = pIdx
 		d.Triangles[tIdx].B = uIdx
 		d.Triangles[tIdx].C = qIdx
-		d.Triangles[tIdx].T1 = nT1  // Edge u-q is now boundary with what was n's neighbor
-		d.Triangles[tIdx].T2 = nIdx // Edge q-p is shared with N
+		d.Triangles[tIdx].T1 = nT1  // Edge u-q is now boundary with what was n's neighbour
+		d.Triangles[tIdx].T2 = int32(nIdx) // Edge q-p is shared with N
 		d.Triangles[tIdx].T3 = tT3  // Edge p-u preserved
 
 		// Update N: A=p, B=q, C=v
@@ -321,17 +323,17 @@ func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 		d.Triangles[nIdx].C = vIdx
 		d.Triangles[nIdx].T1 = nT2
 		d.Triangles[nIdx].T2 = tT2
-		d.Triangles[nIdx].T3 = tIdx
+		d.Triangles[nIdx].T3 = int32(tIdx)
 
 		// Update outer pointers
-		d.updateNeighbor(nT1, nIdx, tIdx)
-		d.updateNeighbor(tT2, tIdx, nIdx)
+		d.updateNeighbor(int(nT1), nIdx, tIdx)
+		d.updateNeighbor(int(tT2), tIdx, nIdx)
 
 		// Recursive Legalise
-		d.legaliseEdge(tIdx, nT1)
-		d.legaliseEdge(tIdx, tT3)
-		d.legaliseEdge(nIdx, nT2)
-		d.legaliseEdge(nIdx, tT2)
+		d.legaliseEdge(tIdx, int(nT1))
+		d.legaliseEdge(tIdx, int(tT3))
+		d.legaliseEdge(nIdx, int(nT2))
+		d.legaliseEdge(nIdx, int(tT2))
 	}
 }
 
@@ -340,16 +342,16 @@ func (d *Delaunay) updateNeighbor(tIdx, oldN, newN int) {
 		return
 	}
 	t := &d.Triangles[tIdx]
-	if t.T1 == oldN {
-		t.T1 = newN
+	if int(t.T1) == oldN {
+		t.T1 = int32(newN)
 		return
 	}
-	if t.T2 == oldN {
-		t.T2 = newN
+	if int(t.T2) == oldN {
+		t.T2 = int32(newN)
 		return
 	}
-	if t.T3 == oldN {
-		t.T3 = newN
+	if int(t.T3) == oldN {
+		t.T3 = int32(newN)
 		return
 	}
 }

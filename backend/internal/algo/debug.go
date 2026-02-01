@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-// DebugJSON returns the mesh in GeoJSON format for visual verification.
-// DebugJSON serialises the current mesh state to GeoJSON.
-func (d *Delaunay) DebugJSON() string {
+// DebugJSON exports the current mesh state as GeoJSON for visualisation.
+// Useful for debugging triangulation results with GIS tools.
+func (d *Delaunay) DebugJSON() (string, error) {
 	type Geometry struct {
 		Type        string        `json:"type"`
 		Coordinates [][][]float64 `json:"coordinates"`
@@ -30,17 +30,15 @@ func (d *Delaunay) DebugJSON() string {
 	}
 
 	for i, t := range d.Triangles {
-		// Skip logically deleted triangles
+
 		if !t.Active {
 			continue
 		}
 
-		p1 := d.Points[t.A]
-		p2 := d.Points[t.B]
-		p3 := d.Points[t.C]
+		p1 := d.Points[int(t.A)]
+		p2 := d.Points[int(t.B)]
+		p3 := d.Points[int(t.C)]
 
-		// GeoJSON uses [Long, Lat] (X, Y)
-		// Polygon must close (first point == last point)
 		coords := [][][]float64{{
 			{p1.X, p1.Y},
 			{p2.X, p2.Y},
@@ -55,15 +53,15 @@ func (d *Delaunay) DebugJSON() string {
 				Coordinates: coords,
 			},
 			Properties: map[string]interface{}{
-				"id":        i,
-				"neighbors": []int{t.T1, t.T2, t.T3},
+				"id":         i,
+				"neighbours": []int{int(t.T1), int(t.T2), int(t.T3)},
 			},
 		})
 	}
 
 	bytes, err := json.MarshalIndent(fc, "", "  ")
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return fmt.Sprintf(`{"error": "%s"}`, err.Error()), err
 	}
-	return string(bytes)
+	return string(bytes), nil
 }

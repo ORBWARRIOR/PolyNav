@@ -4,7 +4,7 @@
 
 **Selected Approach:** Incremental Insertion with Lawson's Flip (Sloan's Method)
 
-We utilize the iterative insertion method described by Sloan. Our implementation strictly follows **Lawson's swapping algorithm** for restoring the Delaunay property, which is distinct from the cavity-creation approach of Bowyer-Watson.
+We utilise the iterative insertion method described by Sloan. Our implementation strictly follows **Lawson's swapping algorithm** for restoring the Delaunay property, which is distinct from the cavity-creation approach of Bowyer-Watson.
 
 * **Reference:** Sloan, S. W., "A fast algorithm for constructing Delaunay triangulations in the plane", *Advances in Engineering Software*, 1987.
 
@@ -20,7 +20,7 @@ To initialize the algorithm, we construct a "Super Triangle" that encompasses al
 
 ### 1.2 Point Location (Sloan's Walk)
 
-To locate the triangle containing a new point $P$, we use a "Directed Walk" (or "Walking Search"). Starting from a recently created triangle, we traverse the mesh by moving towards the neighbor that lies in the direction of $P$.
+To locate the triangle containing a new point $P$, we use a "Directed Walk" (or "Walking Search"). Starting from a recently created triangle, we traverse the mesh by moving towards the neighbour that lies in the direction of $P$.
 
 * **Complexity:** $O(\sqrt{N})$ on average for random points.
 
@@ -40,7 +40,7 @@ While the core logic follows Sloan, the following optimizations described in the
 
 * **Collinear Points:** If a new point lies directly on an existing edge (within `EPSILON`), the standard algorithm requires an "Edge Split" (1-to-4 split).
 
-* **Current Behavior:** The system detects points on existing edges and performs a robust **Edge Split**. The shared edge is split at the new point, dividing the two adjacent triangles into four (or two if on a boundary), ensuring topological correctness even for collinear inputs (e.g., grids).
+* **Current Behavior:** The system detects points on existing edges and performs robust edge splitting as described in Section 3.2. This ensures topological correctness for collinear inputs (e.g., grids).
 
 ## 2. Edge Flipping (Lawson's Flip)
 
@@ -48,11 +48,68 @@ While the core logic follows Sloan, the following optimizations described in the
 
 **Logic:**
 
-After inserting a point and splitting a triangle, we check the quadrilaterals formed by the new triangles and their neighbors. If a pair of triangles shares an edge that is not "locally Delaunay" (i.e., the opposite vertex lies inside the circumcircle), the edge is flipped.
+After inserting a point and splitting a triangle, we check the quadrilaterals formed by the new triangles and their neighbours. If a pair of triangles shares an edge that is not "locally Delaunay" (i.e., the opposite vertex lies inside the circumcircle), the edge is flipped.
 
 * **Educational Ref:** [GEO1015: Triangulations & Voronoi Diagrams (TU Delft)](https://3d.bk.tudelft.nl/courses/geo1015/)
 
-## 3. Pathfinding Heuristics (Dynamic Fusion)
+## 3. Degeneracy Handling: Edge Splitting
+
+### 3.1 Problem Statement
+
+When a new point lies exactly on an existing edge (within EPSILON tolerance), the standard 1-to-3 triangle split fails. This creates a **degenerate case** that requires special handling.
+
+### 3.2 Edge Splitting Algorithm (1-to-4 Split)
+
+When point $P$ lies on the shared edge between triangles $T$ and $N$:
+
+1. **Identify Edge Topology**
+   - Shared edge vertices: $u, v$  
+   - Opposite vertices: $o$ (in $T$), $o_n$ (in $N$)
+   - Original triangles: $T(u,v,o)$ and $N(v,u,o_n)$
+
+2. **Split Triangle $T$**
+   - Create $T_1(p,v,o)$ and $T_2(u,p,o)$
+   - Maintain CCW orientation from original triangle
+
+3. **Split Triangle $N$** (if not on boundary)
+   - Create $N_1(p,u,o_n)$ and $N_2(v,p,o_n)$
+   - Maintain CCW orientation from original triangle
+
+4. **Update Neighbor Relationships**
+   - Connect new triangles to external neighbours
+   - Link the four new triangles appropriately
+   - Update boundary pointers (-1 for hull edges)
+
+### 3.3 Neighbor Index Mapping
+
+The algorithm must correctly map existing neighbour indices to new triangles:
+
+**For Triangle $T$:**
+- Edge $vo$ (opposite $u$): Neighbor index preserved
+- Edge $ou$ (opposite $v$): Neighbor index preserved  
+- Edge $uv$ (shared): Connected to new triangle from $N$
+
+**For Triangle $N$:**
+- Edge $u o_n$ (opposite $v$): Neighbor index preserved
+- Edge $o_n v$ (opposite $u$): Neighbor index preserved
+- Edge $vu$ (shared): Connected to new triangle from $T$
+
+### 3.4 Boundary Cases
+
+If the edge lies on the convex hull boundary ($N$ doesn't exist):
+- Perform 1-to-2 split instead of 1-to-4
+- New triangles on boundary have neighbour index -1 for hull edges
+
+### 3.5 Implementation Notes
+
+* **Edge Detection:** Use `orient2d(pA, pB, p) < EPSILON` to test if point $P$ lies on edge $AB$
+* **Triangle Orientation:** Maintain CCW (counter-clockwise) vertex ordering
+* **Index Consistency:** Update all neighbour references before legalisation
+* **Complexity:** Edge splitting is $O(1)$ per edge, doesn't affect overall $O(N \log N)$ complexity
+
+*Reference: Sloan, S. W., "A fast algorithm for constructing Delaunay triangulations in the plane", Advances in Engineering Software, 1987.*
+
+## 4. Pathfinding Heuristics (Dynamic Fusion)
 
 **Graph Construction:** The mesh is exported as a graph where nodes are triangle centroids and edges represent adjacency.
 

@@ -1,4 +1,4 @@
-.PHONY: build build-frontend build-backend run-frontend run-backend clean proto proto-go proto-java
+.PHONY: build build-frontend build-backend run-frontend run-backend clean proto proto-go proto-java test-delaunay test-delaunay-benchmark
 
 # Variables
 PROTO_DIR = proto
@@ -41,13 +41,17 @@ run-backend:
 	@echo "Running Backend..."
 	cd $(BACKEND_DIR) && go run ./cmd/main.go
 
+# Test
 test-delaunay:
-	@echo "Running Delaunay test..."
+	@echo "Running all tests..."
 	go test -v ./backend/internal/algo/
+
+test-delaunay-benchmark:
+	@echo "Running benchmarks only..."
+	cd backend/internal/algo/ && go test -bench=. -benchmem -run ^$
 
 # Clean
 clean:
 	@echo "Cleaning up..."
 	cd $(FRONTEND_DIR) && mvn clean
-	cd $(BACKEND_DIR) && go clean && rm -rf bin/
-
+	cd $(BACKEND_DIR) && go clean && rm -rf build/

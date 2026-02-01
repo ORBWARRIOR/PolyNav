@@ -27,7 +27,7 @@ end{vmatrix}
 > 0
 $$
 
-* **Why:** This method is robust against floating-point errors compared to calculating the circumcenter explicitly. Explicit circumcenter formulas ($U_x, U_y$) degrade when triangles are "slivers" (nearly collinear).
+* **Why:** This method is robust against floating-point errors compared to calculating the circumcentre explicitly. Explicit circumcentre formulas ($U_x, U_y$) degrade when triangles are "slivers" (nearly collinear).
 * **Reference:** Sloan, S. W., "A fast algorithm for constructing Delaunay triangulations in the plane".
   * [Semantic Scholar Link](https://www.semanticscholar.org/paper/A-fast-algorithm-for-constructing-Delaunay-in-the-Sloan/ab552a51f2f48af6d17855431c56a71db115c52b)
 
@@ -39,9 +39,9 @@ The Voronoi diagram is derived as the dual of the Delaunay triangulation.
 
 * **Resource:** [GEO1004: Tetrahedralisations and 3D Voronoi diagrams (Video)](https://www.youtube.com/watch?v=oOGx9PUGb5c)
 
-## 3. Circumcenter Calculation
+## 3. Circumcentre Calculation
 
-To generate the Voronoi graph (Dual), we calculate the circumcenter $(U_x, U_y)$ of each triangle.
+To generate the Voronoi graph (Dual), we calculate the circumcentre $(U_x, U_y)$ of each triangle.
 
 $$ D = 2(A_x(B_y - C_y) + B_x(C_y - A_y) + C_x(A_y - B_y)) $$
 

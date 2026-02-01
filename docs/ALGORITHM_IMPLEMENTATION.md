@@ -10,7 +10,7 @@ This document explains the structure and responsibility of each source file with
 Defines the core data structures used throughout the package.
 
 * **`Point`**: Basic 2D coordinate $(X, Y)$.
-* **`Triangle`**: Stores 3 vertex indices (`A, B, C`) and 3 neighbor indices (`T1, T2, T3`).
+* **`Triangle`**: Stores 3 vertex indices (`A, B, C`) and 3 neighbour indices (`T1, T2, T3`).
 * *Convention:* Neighbor `T1` is the triangle sharing the edge opposite vertex `A` (edge `BC`).
 * *Flag:* `Active` allows for logical deletion without array resizing.
 * **`Delaunay`**: The main context struct holding the mesh state (slices of Points and Triangles) and acceleration structures.
