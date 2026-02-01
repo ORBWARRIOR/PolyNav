@@ -93,7 +93,7 @@ func TestVoronoiCellProperties(t *testing.T) {
 	}
 
 	// Save debug output
-	saveDebugGeoJSON(d, "./savedTests/debug_voronoi_properties.geojson")
+	saveDebugJSON(d, "./savedTests/debug_voronoi_properties.json")
 }
 
 func TestCircumcenterAccuracy(t *testing.T) {
