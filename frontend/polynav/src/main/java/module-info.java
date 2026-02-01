@@ -1,16 +1,17 @@
-module fyp {
+module io.github.orbwarrior {
     requires transitive javafx.controls;
     requires javafx.fxml;
-    requires protobuf.java;
+    requires com.google.protobuf;
     requires io.grpc;
     requires io.grpc.stub;
     requires io.grpc.protobuf;
     requires java.annotation;
     requires com.google.common;
+    requires com.google.gson;
 
-    opens fyp to javafx.fxml;
-    opens fyp.generated to protobuf.java;
+    opens io.github.orbwarrior to javafx.fxml, com.google.gson;
+    opens fyp.generated to com.google.protobuf;
     
-    exports fyp;
+    exports io.github.orbwarrior;
     exports fyp.generated;
 }

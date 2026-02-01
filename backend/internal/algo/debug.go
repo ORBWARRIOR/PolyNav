@@ -5,32 +5,23 @@ import (
 	"fmt"
 )
 
-// DebugJSON exports the current mesh state as GeoJSON for visualisation.
-// Useful for debugging triangulation results with GIS tools.
+// DebugJSON exports the current mesh state as simple JSON for visualisation.
+// Useful for debugging triangulation results.
 func (d *Delaunay) DebugJSON() (string, error) {
-	type Geometry struct {
-		Type        string        `json:"type"`
-		Coordinates [][][]float64 `json:"coordinates"`
+	type Point struct {
+		X float64 `json:"x"`
+		Y float64 `json:"y"`
 	}
 
-	type Feature struct {
-		Type       string                 `json:"type"`
-		Geometry   Geometry               `json:"geometry"`
-		Properties map[string]interface{} `json:"properties"`
+	type TriangleData struct {
+		ID         int     `json:"id"`
+		Points     []Point `json:"points"`
+		Neighbours []int   `json:"neighbours"`
 	}
 
-	type FeatureCollection struct {
-		Type     string    `json:"type"`
-		Features []Feature `json:"features"`
-	}
-
-	fc := FeatureCollection{
-		Type:     "FeatureCollection",
-		Features: make([]Feature, 0, len(d.Triangles)),
-	}
+	triangles := make([]TriangleData, 0, len(d.Triangles))
 
 	for i, t := range d.Triangles {
-
 		if !t.Active {
 			continue
 		}
@@ -39,27 +30,18 @@ func (d *Delaunay) DebugJSON() (string, error) {
 		p2 := d.Points[int(t.B)]
 		p3 := d.Points[int(t.C)]
 
-		coords := [][][]float64{{
-			{p1.X, p1.Y},
-			{p2.X, p2.Y},
-			{p3.X, p3.Y},
-			{p1.X, p1.Y}, // Closing the loop
-		}}
-
-		fc.Features = append(fc.Features, Feature{
-			Type: "Feature",
-			Geometry: Geometry{
-				Type:        "Polygon",
-				Coordinates: coords,
+		triangles = append(triangles, TriangleData{
+			ID: i,
+			Points: []Point{
+				{X: p1.X, Y: p1.Y},
+				{X: p2.X, Y: p2.Y},
+				{X: p3.X, Y: p3.Y},
 			},
-			Properties: map[string]interface{}{
-				"id":         i,
-				"neighbours": []int{int(t.T1), int(t.T2), int(t.T3)},
-			},
+			Neighbours: []int{int(t.T1), int(t.T2), int(t.T3)},
 		})
 	}
 
-	bytes, err := json.MarshalIndent(fc, "", "  ")
+	bytes, err := json.MarshalIndent(triangles, "", "  ")
 	if err != nil {
 		return fmt.Sprintf(`{"error": "%s"}`, err.Error()), err
 	}
