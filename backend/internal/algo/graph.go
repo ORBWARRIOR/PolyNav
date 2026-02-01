@@ -37,7 +37,7 @@ func (d *Delaunay) ExportGraph() map[int]*GraphNode {
 		}
 
 		addNeigh := func(nIdx int) {
-			if nIdx != -1 && d.Triangles[nIdx].Active {
+			if nIdx != -1 && nIdx < len(d.Triangles) && d.Triangles[nIdx].Active {
 				node.Neighbors = append(node.Neighbors, nIdx)
 			}
 		}
