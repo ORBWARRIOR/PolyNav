@@ -20,9 +20,13 @@ public class GeometryClient {
     private final GeometryServiceGrpc.GeometryServiceBlockingStub blockingStub;
 
     public GeometryClient(String host, int port) {
-        this.channel = ManagedChannelBuilder.forAddress(host, port)
+        this(ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
-                .build();
+                .build());
+    }
+
+    public GeometryClient(ManagedChannel channel) {
+        this.channel = channel;
         this.blockingStub = GeometryServiceGrpc.newBlockingStub(channel);
     }
 

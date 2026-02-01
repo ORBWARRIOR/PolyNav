@@ -18,7 +18,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        // Initialize gRPC Client
+        // Initialise gRPC Client
         client = new GeometryClient("localhost", 50051);
 
         FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource("primary.fxml"));

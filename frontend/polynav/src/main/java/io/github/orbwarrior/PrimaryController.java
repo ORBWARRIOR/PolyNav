@@ -63,7 +63,7 @@ public class PrimaryController {
     }
 
     @FXML
-    public void initialize() {
+    public void initialise() {
         // Resize canvas when window resizes
         canvasContainer.widthProperty().addListener((obs, oldVal, newVal) -> {
             drawingCanvas.setWidth(newVal.doubleValue());
