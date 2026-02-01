@@ -1,4 +1,4 @@
-.PHONY: build build-frontend build-backend run run-frontend run-backend clean proto proto-go proto-java test-delaunay test-delaunay-benchmark kill
+.PHONY: build build-frontend build-backend run run-frontend run-backend clean proto proto-go proto-java test test-delaunay test-delaunay-benchmark test-java kill
 
 # Variables
 PROTO_DIR = proto
@@ -64,13 +64,19 @@ kill:
 	@ps aux | grep "io.github.orbwarrior.App" | grep -v grep | awk '{print $$2}' | xargs -r kill 2>/dev/null || true
 
 # Test
+test: test-delaunay test-ui
+
 test-delaunay:
-	@echo "Running all tests..."
+	@echo "Running delaunay tests..."
 	go test -v ./backend/internal/algo/
 
 test-delaunay-benchmark:
-	@echo "Running benchmarks only..."
+	@echo "Running delaunay benchmarks..."
 	cd backend/internal/algo/ && go test -bench=. -benchmem -run ^$
+
+test-ui:
+	@echo "Running UI tests..."
+	cd $(FRONTEND_DIR) && mvn test
 
 # Clean
 clean:
