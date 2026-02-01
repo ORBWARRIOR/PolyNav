@@ -1,8 +1,8 @@
-.PHONY: build build-frontend build-backend run-frontend run-backend clean proto proto-go proto-java test-delaunay test-delaunay-benchmark
+.PHONY: build build-frontend build-backend run run-frontend run-backend clean proto proto-go proto-java test-delaunay test-delaunay-benchmark
 
 # Variables
 PROTO_DIR = proto
-FRONTEND_DIR = frontend
+FRONTEND_DIR = frontend/polynav
 BACKEND_DIR = backend
 PROTO_FILES = $(PROTO_DIR)/polynav.proto
 
@@ -15,8 +15,8 @@ proto: proto-go proto-java
 proto-go:
 	@echo "Generating Go code from proto..."
 	cd $(BACKEND_DIR) && protoc -I ../$(PROTO_DIR) \
-		--go_out=. --go_opt=paths=import \
-		--go-grpc_out=. --go-grpc_opt=paths=import \
+		--go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		../$(PROTO_FILES)
 
 proto-java:
@@ -33,12 +33,17 @@ build-backend:
 	cd $(BACKEND_DIR) && go mod tidy && go build -o ./build/service ./cmd/main.go
 
 # Run
+run:
+	@echo "Starting both Backend and Frontend..."
+	make run-frontend &
+	make run-backend
+
 run-frontend:
 	@echo "Running Frontend..."
 	cd $(FRONTEND_DIR) && mvn javafx:run
 
 run-backend:
-	@echo "Running Backend..."
+	@echo "Running Backend Service..."
 	cd $(BACKEND_DIR) && go run ./cmd/main.go
 
 # Test
