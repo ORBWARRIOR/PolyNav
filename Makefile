@@ -1,4 +1,4 @@
-.PHONY: build build-frontend build-backend run run-frontend run-backend clean proto proto-go proto-java test test-delaunay test-delaunay-benchmark test-java kill
+.PHONY: build build-frontend build-backend run run-frontend run-backend clean proto proto-go proto-java test test-delaunay test-delaunay-benchmark test-ui test-integration kill
 
 # Variables
 PROTO_DIR = proto
@@ -77,6 +77,10 @@ test-delaunay-benchmark:
 test-ui:
 	@echo "Running UI tests..."
 	cd $(FRONTEND_DIR) && mvn test
+
+test-integration:
+	@echo "Running backend integration tests..."
+	go test -v ./backend/cmd/
 
 # Clean
 clean:
