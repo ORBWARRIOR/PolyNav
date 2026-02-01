@@ -26,10 +26,11 @@ func NewDelaunay(points []Point) (*Delaunay, error) {
 	// See docs/ALGORITHMS.md#13-deviations-from-sloans-1987-algorithm
 	sort.Slice(uniquePoints, func(i, j int) bool { return uniquePoints[i].X < uniquePoints[j].X })
 
-	// Preallocate with factor 2*N (See docs/MATHEMATICS.md#4-memory-allocation-eulers-formula)
+	// Preallocate with factor 2.5*N (Tuned based on experimental churn)
+	// See docs/MATHEMATICS.md#4-memory-allocation-eulers-formula
 	d := &Delaunay{
 		Points:    make([]Point, 0, len(uniquePoints)+3),
-		Triangles: make([]Triangle, 0, len(uniquePoints)*2),
+		Triangles: make([]Triangle, 0, int(float64(len(uniquePoints))*2.5)+100),
 	}
 
 	d.Points = append(d.Points, uniquePoints...)
@@ -54,7 +55,7 @@ func NewDelaunay(points []Point) (*Delaunay, error) {
 	}
 
 	dx, dy := maxX-minX, maxY-minY
-	deltaMax := math.Max(dx, dy) * 20.0 // See docs/ALGORITHMS.md#11-the-super-triangle
+	deltaMax := math.Max(dx, dy) * 10.0
 	midX, midY := (minX+maxX)/2.0, (minY+maxY)/2.0
 
 	p1 := Point{midX - deltaMax, midY - deltaMax}
@@ -67,7 +68,7 @@ func NewDelaunay(points []Point) (*Delaunay, error) {
 
 	// Create Root Triangle
 	d.Triangles = append(d.Triangles, Triangle{
-		A: idx1, B: idx2, C: idx3,
+		A: int32(idx1), B: int32(idx2), C: int32(idx3),
 		T1: -1, T2: -1, T3: -1,
 		Active: true,
 	})
@@ -129,23 +130,24 @@ func deduplicatePoints(points []Point) []Point {
 }
 
 func (d *Delaunay) cleanup() {
-	var clean []Triangle
-	// Remove super triangle and logically deleted triangles
+	// In-place compaction to remove triangles connected to Super Triangle
+	n := 0
 	for _, t := range d.Triangles {
 		if !t.Active {
 			continue
 		}
 
 		isSuper := false
-		for _, idx := range []int{t.A, t.B, t.C} {
+		for _, idx := range []int{int(t.A), int(t.B), int(t.C)} {
 			if idx == d.superIndices[0] || idx == d.superIndices[1] || idx == d.superIndices[2] {
 				isSuper = true
 				break
 			}
 		}
 		if !isSuper {
-			clean = append(clean, t)
+			d.Triangles[n] = t
+			n++
 		}
 	}
-	d.Triangles = clean
+	d.Triangles = d.Triangles[:n]
 }

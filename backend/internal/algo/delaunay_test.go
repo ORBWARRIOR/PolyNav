@@ -487,7 +487,7 @@ func generateConcentricCircles(numCircles, pointsPerCircle int) []Point {
 }
 
 func isThinTriangle(d *Delaunay, tri Triangle) bool {
-	p1, p2, p3 := d.Points[tri.A], d.Points[tri.B], d.Points[tri.C]
+	p1, p2, p3 := d.Points[int(tri.A)], d.Points[int(tri.B)], d.Points[int(tri.C)]
 
 	// Calculate side lengths
 	a := math.Sqrt(math.Pow(p2.X-p3.X, 2) + math.Pow(p2.Y-p3.Y, 2))

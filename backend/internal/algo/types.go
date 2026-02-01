@@ -12,9 +12,9 @@ type Point struct {
 // T1, T2, T3 are neighbours opposite to vertices A, B, C respectively.
 // -1 indicates convex hull boundary.
 type Triangle struct {
-	A, B, C    int  // Vertex Indices
-	T1, T2, T3 int  // Neighbor Indices. -1 indicates convex hull boundary.
-	Active     bool // Logical deletion
+	A, B, C    int32 // Vertex Indices (int32 for memory efficiency)
+	T1, T2, T3 int32 // Neighbor Indices. -1 indicates convex hull boundary.
+	Active     bool  // Logical deletion
 }
 
 type Delaunay struct {

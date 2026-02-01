@@ -8,7 +8,7 @@ func (d *Delaunay) orient2d(a, b, c Point) float64 {
 
 func (d *Delaunay) inCircumcircle(tIdx int, p Point) bool {
 	t := d.Triangles[tIdx]
-	a, b, c := d.Points[t.A], d.Points[t.B], d.Points[t.C]
+	a, b, c := d.Points[int(t.A)], d.Points[int(t.B)], d.Points[int(t.C)]
 
 	// inCircumcircle tests if point is inside triangle's circumcircle.
 	// Uses robust determinant-based predicate to avoid explicit circumcentre calculation.
@@ -24,7 +24,7 @@ func (d *Delaunay) inCircumcircle(tIdx int, p Point) bool {
 
 func (d *Delaunay) contains(tIdx int, p Point) bool {
 	t := d.Triangles[tIdx]
-	return d.orient2d(d.Points[t.A], d.Points[t.B], p) >= -EPSILON &&
-		d.orient2d(d.Points[t.B], d.Points[t.C], p) >= -EPSILON &&
-		d.orient2d(d.Points[t.C], d.Points[t.A], p) >= -EPSILON
+	return d.orient2d(d.Points[int(t.A)], d.Points[int(t.B)], p) >= -EPSILON &&
+		d.orient2d(d.Points[int(t.B)], d.Points[int(t.C)], p) >= -EPSILON &&
+		d.orient2d(d.Points[int(t.C)], d.Points[int(t.A)], p) >= -EPSILON
 }

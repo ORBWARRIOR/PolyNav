@@ -35,9 +35,9 @@ func (d *Delaunay) DebugJSON() (string, error) {
 			continue
 		}
 
-		p1 := d.Points[t.A]
-		p2 := d.Points[t.B]
-		p3 := d.Points[t.C]
+		p1 := d.Points[int(t.A)]
+		p2 := d.Points[int(t.B)]
+		p3 := d.Points[int(t.C)]
 
 		coords := [][][]float64{{
 			{p1.X, p1.Y},
@@ -54,7 +54,7 @@ func (d *Delaunay) DebugJSON() (string, error) {
 			},
 			Properties: map[string]interface{}{
 				"id":         i,
-				"neighbours": []int{t.T1, t.T2, t.T3},
+				"neighbours": []int{int(t.T1), int(t.T2), int(t.T3)},
 			},
 		})
 	}

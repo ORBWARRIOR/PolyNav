@@ -13,7 +13,7 @@ func (d *Delaunay) ExportGraph() map[int]*GraphNode {
 			continue
 		}
 
-		p1, p2, p3 := d.Points[t.A], d.Points[t.B], d.Points[t.C]
+		p1, p2, p3 := d.Points[int(t.A)], d.Points[int(t.B)], d.Points[int(t.C)]
 
 		D := 2 * (p1.X*(p2.Y-p3.Y) + p2.X*(p3.Y-p1.Y) + p3.X*(p1.Y-p2.Y))
 		if math.Abs(D) < EPSILON {
@@ -41,9 +41,9 @@ func (d *Delaunay) ExportGraph() map[int]*GraphNode {
 				node.Neighbors = append(node.Neighbors, nIdx)
 			}
 		}
-		addNeigh(t.T1)
-		addNeigh(t.T2)
-		addNeigh(t.T3)
+		addNeigh(int(t.T1))
+		addNeigh(int(t.T2))
+		addNeigh(int(t.T3))
 
 		graph[i] = node
 	}
