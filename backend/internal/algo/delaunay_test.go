@@ -80,7 +80,7 @@ func TestDelaunayTriangulateScenarios(t *testing.T) {
 				t.Errorf("Triangle count mismatch. Got %d, want between %d and %d",
 					len(d.Triangles), tt.expectMinTris, tt.expectMaxTris)
 			}
-			saveDebugGeoJSON(d, fmt.Sprintf("./savedTests/debug_%s.geojson", tt.name))
+			saveDebugJSON(d, fmt.Sprintf("./savedTests/debug_%s.json", tt.name))
 		})
 	}
 }
@@ -105,7 +105,7 @@ func TestDegeneracyDuplicatePoints(t *testing.T) {
 	if len(d.Points) != expectedPoints {
 		t.Errorf("Deduplication failure. Expected %d points, got %d.", expectedPoints, len(d.Points))
 	}
-	saveDebugGeoJSON(d, "./savedTests/debug_duplicate_points.geojson")
+	saveDebugJSON(d, "./savedTests/debug_duplicate_points.json")
 }
 
 func TestDegeneracyCollinearStress(t *testing.T) {
@@ -207,7 +207,7 @@ func TestDegeneracyNearlyCollinear(t *testing.T) {
 		t.Error("Triangulation resulted in 0 active triangles for nearly-collinear case")
 	}
 
-	saveDebugGeoJSON(d, "./savedTests/debug_nearly_collinear.geojson")
+	saveDebugJSON(d, "./savedTests/debug_nearly_collinear.json")
 }
 
 func TestDegeneracyExtremeCoordinates(t *testing.T) {
@@ -320,7 +320,7 @@ func TestDegeneracyCoincidentPoints(t *testing.T) {
 				t.Errorf("No active triangles after coincident point deduplication in '%s'", tt.name)
 			}
 
-			saveDebugGeoJSON(d, fmt.Sprintf("./savedTests/debug_coincident_%s.geojson", tt.name))
+			saveDebugJSON(d, fmt.Sprintf("./savedTests/debug_coincident_%s.json", tt.name))
 		})
 	}
 }
@@ -382,7 +382,7 @@ func TestDegeneracyPathologicalGeometries(t *testing.T) {
 				t.Logf("Warning: High ratio of thin triangles (%.2f) in '%s'", thinRatio, tt.name)
 			}
 
-			saveDebugGeoJSON(d, fmt.Sprintf("./savedTests/debug_pathological_%s.geojson", tt.name))
+			saveDebugJSON(d, fmt.Sprintf("./savedTests/debug_pathological_%s.json", tt.name))
 		})
 	}
 }
@@ -413,18 +413,9 @@ func generateTestPoints(size int, seed int64) []Point {
 	return points
 }
 
-func saveDebugGeoJSON(d *Delaunay, filename string) {
-	// Export debug mesh to file
-	data, err := d.DebugJSON()
-	if err != nil {
-		panic(err)
-	}
-
-	// Save to a file
-	if err := os.WriteFile(filename, []byte(data), 0644); err != nil {
-		panic(err)
-	}
-	fmt.Printf("Exported debug mesh to %s\n", filename)
+func saveDebugJSON(d *Delaunay, filename string) {
+	jsonStr, _ := d.DebugJSON()
+	_ = os.WriteFile(filename, []byte(jsonStr), 0644)
 }
 
 // Helper functions for pathological geometry generation
