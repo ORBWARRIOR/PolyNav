@@ -35,7 +35,7 @@ public class GeometryClient {
     }
 
     public List<Triangle> getTriangulation(List<Point2D> points) {
-        // Build the request with a single closed loop (default behavior)
+        // Build the request
         Obstacle.Builder obstacleBuilder = Obstacle.newBuilder();
         for (Point2D p : points) {
             obstacleBuilder.addPoints(Point.newBuilder()
