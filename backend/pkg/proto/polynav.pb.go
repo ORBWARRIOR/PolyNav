@@ -182,12 +182,13 @@ func (x *MapData) GetGoal() *Point {
 
 // Result of a triangulation request
 type Triangle struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	A             *Point                 `protobuf:"bytes,1,opt,name=a,proto3" json:"a,omitempty"`
-	B             *Point                 `protobuf:"bytes,2,opt,name=b,proto3" json:"b,omitempty"`
-	C             *Point                 `protobuf:"bytes,3,opt,name=c,proto3" json:"c,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	A                *Point                 `protobuf:"bytes,1,opt,name=a,proto3" json:"a,omitempty"`
+	B                *Point                 `protobuf:"bytes,2,opt,name=b,proto3" json:"b,omitempty"`
+	C                *Point                 `protobuf:"bytes,3,opt,name=c,proto3" json:"c,omitempty"`
+	ConstrainedEdges []bool                 `protobuf:"varint,4,rep,packed,name=constrained_edges,json=constrainedEdges,proto3" json:"constrained_edges,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Triangle) Reset() {
@@ -237,6 +238,13 @@ func (x *Triangle) GetB() *Point {
 func (x *Triangle) GetC() *Point {
 	if x != nil {
 		return x.C
+	}
+	return nil
+}
+
+func (x *Triangle) GetConstrainedEdges() []bool {
+	if x != nil {
+		return x.ConstrainedEdges
 	}
 	return nil
 }

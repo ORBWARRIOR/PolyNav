@@ -50,6 +50,13 @@ public class PrimaryController {
     public static class JsonPoint {
         public double x, y;
     }
+    
+    // Helper for Map Import
+    public static class MapFile {
+        public List<JsonPoint> points;
+        public List<int[]> segments;
+        public List<int[]> constraints; // Alias for segments
+    }
 
     // Helper class for Debug JSON import
     public static class DebugTriangle {
@@ -133,7 +140,10 @@ public class PrimaryController {
             try (FileReader reader = new FileReader(selectedFile)) {
                 JsonElement root = JsonParser.parseReader(reader);
                 
-                if (root.isJsonArray()) {
+                if (root.isJsonObject()) {
+                    // New Map Format with "points" and "segments"
+                    handleMapImport(root);
+                } else if (root.isJsonArray()) {
                     JsonArray array = root.getAsJsonArray();
                     if (array.size() > 0) {
                         JsonElement firstItem = array.get(0);
@@ -150,6 +160,33 @@ public class PrimaryController {
                 alert.setHeaderText("Failed to import map");
                 alert.setContentText(e.getMessage());
                 alert.showAndWait();
+            }
+        }
+    }
+
+    private void handleMapImport(JsonElement root) {
+        Gson gson = new Gson();
+        MapFile map = gson.fromJson(root, MapFile.class);
+        
+        if (map != null && map.points != null) {
+            points.clear();
+            for (JsonPoint p : map.points) {
+                points.add(new Point2D(p.x, p.y));
+            }
+            
+            // If we have explicit segments, use them. Otherwise just points.
+            List<int[]> segs = map.segments != null ? map.segments : map.constraints;
+            
+            if (segs != null && !segs.isEmpty() && client != null) {
+                // If live mode is on or just for loading, we might want to store segments.
+                // For now, we immediately triangulate with segments if available.
+                recalcBoundsAndRedraw();
+                if (liveModeCheckbox.isSelected()) {
+                    List<Triangle> triangles = client.getTriangulation(points, segs);
+                    drawTriangles(triangles);
+                }
+            } else {
+                finishImport();
             }
         }
     }

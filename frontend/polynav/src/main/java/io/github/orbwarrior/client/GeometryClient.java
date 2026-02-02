@@ -48,7 +48,26 @@ public class GeometryClient {
                 .addObstacles(obstacleBuilder.build())
                 .build();
 
-        // Call the RPC
+        return executeRequest(request);
+    }
+
+    public List<Triangle> getTriangulation(List<Point2D> points, List<int[]> segments) {
+        MapData.Builder requestBuilder = MapData.newBuilder();
+
+        // Convert each segment into a 2-point Obstacle
+        for (int[] seg : segments) {
+            if (seg.length < 2) continue;
+            Point p1 = Point.newBuilder().setX(points.get(seg[0]).getX()).setY(points.get(seg[0]).getY()).build();
+            Point p2 = Point.newBuilder().setX(points.get(seg[1]).getX()).setY(points.get(seg[1]).getY()).build();
+            
+            // Hack: Send p1-p2-p1 to bypass "len < 3" check in backend and enforce constraint p1-p2
+            requestBuilder.addObstacles(Obstacle.newBuilder().addPoints(p1).addPoints(p2).addPoints(p1).build());
+        }
+
+        return executeRequest(requestBuilder.build());
+    }
+
+    private List<Triangle> executeRequest(MapData request) {
         try {
             TriangulationResult result = blockingStub.triangulate(request);
             return result.getTrianglesList();
