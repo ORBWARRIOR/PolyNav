@@ -50,6 +50,13 @@ public class PrimaryController {
     public static class JsonPoint {
         public double x, y;
     }
+    
+    // Helper for Map Import
+    public static class MapFile {
+        public List<JsonPoint> points;
+        public List<int[]> segments;
+        public List<int[]> constraints; // Alias for segments
+    }
 
     // Helper class for Debug JSON import
     public static class DebugTriangle {
@@ -63,7 +70,7 @@ public class PrimaryController {
     }
 
     @FXML
-    public void initialise() {
+    public void initialize() {
         // Resize canvas when window resizes
         canvasContainer.widthProperty().addListener((obs, oldVal, newVal) -> {
             drawingCanvas.setWidth(newVal.doubleValue());
@@ -133,7 +140,10 @@ public class PrimaryController {
             try (FileReader reader = new FileReader(selectedFile)) {
                 JsonElement root = JsonParser.parseReader(reader);
                 
-                if (root.isJsonArray()) {
+                if (root.isJsonObject()) {
+                    // New Map Format with "points" and "segments"
+                    handleMapImport(root);
+                } else if (root.isJsonArray()) {
                     JsonArray array = root.getAsJsonArray();
                     if (array.size() > 0) {
                         JsonElement firstItem = array.get(0);
@@ -145,11 +155,39 @@ public class PrimaryController {
                     }
                 }
             } catch (Exception e) {
+                e.printStackTrace();
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Import Error");
                 alert.setHeaderText("Failed to import map");
                 alert.setContentText(e.getMessage());
                 alert.showAndWait();
+            }
+        }
+    }
+
+    private void handleMapImport(JsonElement root) {
+        Gson gson = new Gson();
+        MapFile map = gson.fromJson(root, MapFile.class);
+        
+        if (map != null && map.points != null) {
+            points.clear();
+            for (JsonPoint p : map.points) {
+                points.add(new Point2D(p.x, p.y));
+            }
+            
+            // If we have explicit segments, use them. Otherwise just points.
+            List<int[]> segs = map.segments != null ? map.segments : map.constraints;
+            
+            if (segs != null && !segs.isEmpty() && client != null) {
+                // If live mode is on or just for loading, we might want to store segments.
+                // For now, we immediately triangulate with segments if available.
+                recalcBoundsAndRedraw();
+                if (liveModeCheckbox.isSelected()) {
+                    List<Triangle> triangles = client.getTriangulation(points, segs);
+                    drawTriangles(triangles);
+                }
+            } else {
+                finishImport();
             }
         }
     }
@@ -265,21 +303,39 @@ public class PrimaryController {
     private void drawTriangles(List<Triangle> triangles) {
         redraw(); // Clear and draw points first
         GraphicsContext gc = drawingCanvas.getGraphicsContext2D();
-        gc.setStroke(Color.RED);
-        gc.setLineWidth(1.0);
 
         for (Triangle t : triangles) {
-            double[] xPoints = {
-                t.getA().getX() * scale + offsetX, 
-                t.getB().getX() * scale + offsetX, 
-                t.getC().getX() * scale + offsetX
-            };
-            double[] yPoints = {
-                t.getA().getY() * scale + offsetY, 
-                t.getB().getY() * scale + offsetY, 
-                t.getC().getY() * scale + offsetY
-            };
-            gc.strokePolygon(xPoints, yPoints, 3);
+            // Get screen coordinates for A, B, C
+            double ax = t.getA().getX() * scale + offsetX;
+            double ay = t.getA().getY() * scale + offsetY;
+            double bx = t.getB().getX() * scale + offsetX;
+            double by = t.getB().getY() * scale + offsetY;
+            double cx = t.getC().getX() * scale + offsetX;
+            double cy = t.getC().getY() * scale + offsetY;
+
+            // Constrained edges list from proto (indices: 0=BC, 1=CA, 2=AB)
+            List<Boolean> constrained = t.getConstrainedEdgesList();
+            boolean c0 = constrained.size() > 0 ? constrained.get(0) : false;
+            boolean c1 = constrained.size() > 1 ? constrained.get(1) : false;
+            boolean c2 = constrained.size() > 2 ? constrained.get(2) : false;
+
+            // Edge BC (Index 0)
+            drawEdge(gc, bx, by, cx, cy, c0);
+            // Edge CA (Index 1)
+            drawEdge(gc, cx, cy, ax, ay, c1);
+            // Edge AB (Index 2)
+            drawEdge(gc, ax, ay, bx, by, c2);
         }
+    }
+
+    private void drawEdge(GraphicsContext gc, double x1, double y1, double x2, double y2, boolean isConstrained) {
+        if (isConstrained) {
+            gc.setStroke(Color.rgb(75, 0, 130)); // Indigo/Dark Purple
+            gc.setLineWidth(2.0);
+        } else {
+            gc.setStroke(Color.BLACK);
+            gc.setLineWidth(0.5);
+        }
+        gc.strokeLine(x1, y1, x2, y2);
     }
 }
