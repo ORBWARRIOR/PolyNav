@@ -15,7 +15,15 @@ type Triangle struct {
 	A, B, C    int32 // Vertex Indices (int32 for memory efficiency)
 	T1, T2, T3 int32 // Neighbor Indices. -1 indicates convex hull boundary.
 	Active     bool  // Logical deletion
+	Constrained [3]bool // Bitmask or bools: is edge i constrained?
+	Inside      bool    // Part of the constrained interior
 }
+
+
+type Segment struct {
+	P1, P2 int
+}
+
 
 type Delaunay struct {
 	Points       []Point

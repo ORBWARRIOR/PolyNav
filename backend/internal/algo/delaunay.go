@@ -130,9 +130,15 @@ func deduplicatePoints(points []Point) []Point {
 }
 
 func (d *Delaunay) cleanup() {
-	// In-place compaction to remove triangles connected to Super Triangle
-	n := 0
-	for _, t := range d.Triangles {
+	// Map old index to new index
+	newIndices := make([]int32, len(d.Triangles))
+	for i := range newIndices {
+		newIndices[i] = -1
+	}
+
+	// 1. Mark active/valid triangles and assign new indices
+	activeCount := 0
+	for i, t := range d.Triangles {
 		if !t.Active {
 			continue
 		}
@@ -144,10 +150,43 @@ func (d *Delaunay) cleanup() {
 				break
 			}
 		}
+		
+		// Logic: If it connects to Super Triangle, we remove it. 
+		// Unless we want to keep the Hull? 
+		// Standard cleanup removes them.
 		if !isSuper {
-			d.Triangles[n] = t
-			n++
+			newIndices[i] = int32(activeCount)
+			activeCount++
 		}
 	}
-	d.Triangles = d.Triangles[:n]
+
+	// 2. Compact and Update Neighbors
+	// We create a new slice to avoid overwriting while reading
+	newTriangles := make([]Triangle, 0, activeCount)
+
+	for i, t := range d.Triangles {
+		if newIndices[i] != -1 {
+			// Update neighbors
+			// If a neighbor maps to -1 (removed), it becomes a boundary (-1)
+			
+			updateN := func(n int32) int32 {
+				if n == -1 {
+					return -1
+				}
+				if int(n) >= len(newIndices) {
+					// Should not happen if logic is correct
+					return -1
+				}
+				return newIndices[n]
+			}
+
+			t.T1 = updateN(t.T1)
+			t.T2 = updateN(t.T2)
+			t.T3 = updateN(t.T3)
+			
+			newTriangles = append(newTriangles, t)
+		}
+	}
+	
+	d.Triangles = newTriangles
 }

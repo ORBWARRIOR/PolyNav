@@ -263,7 +263,6 @@ func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 		return
 	}
 
-	t := d.Triangles[tIdx]
 	n := d.Triangles[nIdx]
 
 	// Identify shared edge and opposite vertex for edge flip check
@@ -282,59 +281,79 @@ func (d *Delaunay) legaliseEdge(tIdx, nIdx int) {
 
 	// Check if edge needs flipping using in-circle test
 	if d.inCircumcircle(tIdx, q) {
-		// Perform edge flip to restore Delaunay property
-		// Find shared edge vertices in T
-		var tSlot int
-		if int(t.T1) == nIdx {
-			tSlot = 0
-		} else if int(t.T2) == nIdx {
-			tSlot = 1
-		} else {
-			tSlot = 2
-		}
-
-		// Vertices
-		// T: (p, u, v) where p is opposite shared edge
-		// N: (q, v, u) where q is opposite shared edge
-		// Result T: (p, u, q), N: (p, q, v)
-
-		// Update triangle vertices and neighbours after edge flip
-		pIdx := [3]int32{t.A, t.B, t.C}[tSlot]
-		uIdx := [3]int32{t.A, t.B, t.C}[(tSlot+1)%3]
-		vIdx := [3]int32{t.A, t.B, t.C}[(tSlot+2)%3]
-
-		// Neighbors
-		nT1 := [3]int32{n.T1, n.T2, n.T3}[(nSlot+1)%3] // Neighbor opp v in N
-		nT2 := [3]int32{n.T1, n.T2, n.T3}[(nSlot+2)%3] // Neighbor opp u in N
-		tT2 := [3]int32{t.T1, t.T2, t.T3}[(tSlot+1)%3] // Neighbor opp v in T
-		tT3 := [3]int32{t.T1, t.T2, t.T3}[(tSlot+2)%3] // Neighbor opp u in T
-
-		// Update T: A=p, B=u, C=q
-		d.Triangles[tIdx].A = pIdx
-		d.Triangles[tIdx].B = uIdx
-		d.Triangles[tIdx].C = qIdx
-		d.Triangles[tIdx].T1 = nT1  // Edge u-q is now boundary with what was n's neighbour
-		d.Triangles[tIdx].T2 = int32(nIdx) // Edge q-p is shared with N
-		d.Triangles[tIdx].T3 = tT3  // Edge p-u preserved
-
-		// Update N: A=p, B=q, C=v
-		d.Triangles[nIdx].A = pIdx
-		d.Triangles[nIdx].B = qIdx
-		d.Triangles[nIdx].C = vIdx
-		d.Triangles[nIdx].T1 = nT2
-		d.Triangles[nIdx].T2 = tT2
-		d.Triangles[nIdx].T3 = int32(tIdx)
-
-		// Update outer pointers
-		d.updateNeighbor(int(nT1), nIdx, tIdx)
-		d.updateNeighbor(int(tT2), tIdx, nIdx)
+		d.flipEdge(tIdx, nIdx)
 
 		// Recursive Legalise
-		d.legaliseEdge(tIdx, int(nT1))
-		d.legaliseEdge(tIdx, int(tT3))
-		d.legaliseEdge(nIdx, int(nT2))
-		d.legaliseEdge(nIdx, int(tT2))
+		// The neighbours to check are the ones that were "outer" edges of the quad
+		// flipEdge updates T1, T2, T3. We need to check them.
+		// After flip:
+		// T: (p, u, q). Neighbors: nT1 (opp u), nIdx (opp p, ignored), tT3 (opp q).
+		// N: (p, q, v). Neighbors: nT2 (opp p), tT2 (opp q), tIdx (opp v, ignored).
+		
+		// Wait, finding the indices of the neighbors to check is slightly annoying without context.
+		// But I can just check all 4 external neighbors?
+		// Or I can calculate them inside flipEdge and return them?
+		// Simpler: Just check the neighbors of tIdx and nIdx, ignoring nIdx and tIdx respectively.
+		
+		d.legaliseEdge(tIdx, int(d.Triangles[tIdx].T1))
+		d.legaliseEdge(tIdx, int(d.Triangles[tIdx].T3))
+		
+		d.legaliseEdge(nIdx, int(d.Triangles[nIdx].T1))
+		d.legaliseEdge(nIdx, int(d.Triangles[nIdx].T2))
 	}
+}
+
+// flipEdge performs the topological flip of the edge shared by tIdx and nIdx.
+// Assumes they are valid neighbors.
+func (d *Delaunay) flipEdge(tIdx, nIdx int) {
+	t := d.Triangles[tIdx]
+	n := d.Triangles[nIdx]
+
+	// Find slots
+	var tSlot int
+	if int(t.T1) == nIdx { tSlot = 0 } else if int(t.T2) == nIdx { tSlot = 1 } else { tSlot = 2 }
+
+	var nSlot int
+	if int(n.T1) == tIdx { nSlot = 0 } else if int(n.T2) == tIdx { nSlot = 1 } else { nSlot = 2 }
+
+	// Vertices
+	// T: (p, u, v) where p is opposite shared edge
+	// N: (q, v, u) where q is opposite shared edge (Order in N is reversed? No, CCW).
+	// Shared edge is u-v.
+	// T has u-v as edge opposite p.
+	// N has v-u as edge opposite q.
+	
+	pIdx := [3]int32{t.A, t.B, t.C}[tSlot]
+	uIdx := [3]int32{t.A, t.B, t.C}[(tSlot+1)%3]
+	vIdx := [3]int32{t.A, t.B, t.C}[(tSlot+2)%3]
+	
+	qIdx := [3]int32{n.A, n.B, n.C}[nSlot]
+
+	// Neighbors
+	nT1 := [3]int32{n.T1, n.T2, n.T3}[(nSlot+1)%3] // Neighbor opp v in N
+	nT2 := [3]int32{n.T1, n.T2, n.T3}[(nSlot+2)%3] // Neighbor opp u in N
+	tT2 := [3]int32{t.T1, t.T2, t.T3}[(tSlot+1)%3] // Neighbor opp v in T
+	tT3 := [3]int32{t.T1, t.T2, t.T3}[(tSlot+2)%3] // Neighbor opp u in T
+
+	// Update T: A=p, B=u, C=q
+	d.Triangles[tIdx].A = pIdx
+	d.Triangles[tIdx].B = uIdx
+	d.Triangles[tIdx].C = qIdx
+	d.Triangles[tIdx].T1 = nT1  // Edge u-q is now boundary with what was n's neighbour
+	d.Triangles[tIdx].T2 = int32(nIdx) // Edge q-p is shared with N
+	d.Triangles[tIdx].T3 = tT3  // Edge p-u preserved
+
+	// Update N: A=p, B=q, C=v
+	d.Triangles[nIdx].A = pIdx
+	d.Triangles[nIdx].B = qIdx
+	d.Triangles[nIdx].C = vIdx
+	d.Triangles[nIdx].T1 = nT2
+	d.Triangles[nIdx].T2 = tT2
+	d.Triangles[nIdx].T3 = int32(tIdx)
+
+	// Update outer pointers
+	d.updateNeighbor(int(nT1), nIdx, tIdx)
+	d.updateNeighbor(int(tT2), tIdx, nIdx)
 }
 
 func (d *Delaunay) updateNeighbor(tIdx, oldN, newN int) {
