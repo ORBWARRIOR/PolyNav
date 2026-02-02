@@ -30,6 +30,8 @@ message Triangle {
     Point a = 1;
     Point b = 2;
     Point c = 3;
+    // Edge constraints: [0] = BC, [1] = CA, [2] = AB
+    repeated bool constrained_edges = 4;
 }
 
 message TriangulationResult {
