@@ -22,12 +22,15 @@ target/
 .DS_Store
 Thumbs.db
 
-# GeoJSON debug files
-*.geojson
-
+# JSON debug files
+backend/internal/algo/savedTests/
 # Build directories
 frontend/build/
 backend/build/
 
 # Vendor directory
 vendor/
+
+.classpath
+.project
+.settings/
