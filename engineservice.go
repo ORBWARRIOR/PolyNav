@@ -12,12 +12,7 @@ type EngineService struct {
 }
 
 func NewEngineService() *EngineService {
-	return &EngineService{eng: engine.New()}
-}
-
-// Status returns the engine readiness state.
-func (s *EngineService) Status() string {
-	return s.eng.Status()
+	return &EngineService{eng: engine.NewEngine()}
 }
 
 // Triangulate runs Delaunay triangulation and returns a serialisable result.
