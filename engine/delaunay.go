@@ -42,62 +42,67 @@ func Triangulate(points []Point) (*Mesh, error) {
 	}
 
 	uniq := deduplicatePoints(normalisePoints(points))
-	if len(uniq) < 3 {
-		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", len(uniq))
+	length := len(uniq)
+	if length < 3 {
+		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", length)
 	}
 
-	// stub: returns a single triangle from the first 3 unique points
+	mesh := NewMeshWithSuperTriangle(float64(length))
+
+	for i := range length {
+		InsertPoint(mesh, uniq[i])
+	}
+
 	return &Mesh{
-		Points:   uniq,
-		Indices:  []int{0, 1, 2},
-		Edges:    []Edge{{0, 1}, {1, 2}, {2, 0}},
-		Boundary: []Edge{{0, 1}, {1, 2}, {2, 0}},
+		Points: uniq,
 	}, nil
 }
 
-// GetCircumcircle returns the circumcentre (ux, uy) and squared radius rSqrd
-// for the triangle formed by p1, p2, p3.  ok=false when the points are
-// collinear (denominator ≈ 0).
-func GetCircumcircle(p1, p2, p3 Point) (ux, uy, rSqrd float64, ok bool) {
-	p1Sq := p1.X*p1.X + p1.Y*p1.Y
-	p2Sq := p2.X*p2.X + p2.Y*p2.Y
-	p3Sq := p3.X*p3.X + p3.Y*p3.Y
-
-	d := 2 * (p1.X*(p2.Y-p3.Y) + p2.X*(p3.Y-p1.Y) + p3.X*(p1.Y-p2.Y))
-	if math.Abs(d) < Epsilon {
-		return 0, 0, 0, false
+func NewMeshWithSuperTriangle(lengthPoints float64) *Mesh {
+	estimatedPoints := int32(lengthPoints * 2.5)
+	m := &Mesh{
+		Points:    make([]Point, 0, estimatedPoints+3),
+		HalfEdges: make([]HalfEdge, 0, estimatedPoints*6),
+		Triangles: make([]Triangle, 0, estimatedPoints*2),
 	}
 
-	ux = (p1Sq*(p2.Y-p3.Y) + p2Sq*(p3.Y-p1.Y) + p3Sq*(p1.Y-p2.Y)) / d
-	uy = (p1Sq*(p3.X-p2.X) + p2Sq*(p1.X-p3.X) + p3Sq*(p2.X-p1.X)) / d
+	// Add Super-Triangle Vertices
+	m.Points = append(m.Points, Point{-100, -100}) // VertexID 0
+	m.Points = append(m.Points, Point{100, -100})  // VertexID 1
+	m.Points = append(m.Points, Point{0, 100})     // VertexID 2
 
-	dx := ux - p1.X
-	dy := uy - p1.Y
-	rSqrd = dx*dx + dy*dy
+	// Add Face 0 (The Super-Triangle)
+	m.Triangles = append(m.Triangles, Triangle{Edge: 0}) // FaceID 0
 
-	return ux, uy, rSqrd, true
-}
+	// Add the 3 Internal Half-Edges (Counter-Clockwise)
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 3, Next: 1, Triangle: 0}) // Edge 0
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 1, Twin: 4, Next: 2, Triangle: 0}) // Edge 1
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 2, Twin: 5, Next: 0, Triangle: 0}) // Edge 2
 
-// PointInCircumcircle checks whether pt lies inside the circumcircle of (a, b, c).
-func PointInCircumcircle(pt, a, b, c Point) bool {
-	cx, cy, rsq, ok := GetCircumcircle(a, b, c)
-	if !ok {
-		return false
-	}
-	dx := pt.X - cx
-	dy := pt.Y - cy
-	return dx*dx+dy*dy <= rsq+Epsilon
+	// Add the 3 External Boundary Half-Edges (Clockwise Twins)
+	// Their Face is set to -1 (None) because they face outward to infinity
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 1, Twin: 0, Next: 5, Triangle: -1}) // Edge 3
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 2, Twin: 1, Next: 3, Triangle: -1}) // Edge 4
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 2, Next: 4, Triangle: -1}) // Edge 5
+
+	return m
 }
 
 // MeshStats computes summary statistics from a Mesh.
 func MeshStats(m *Mesh) Stats {
 	// Dummy — count from the data structure.
-	triCount := len(m.Indices) / 3
+	edgeCount := len(m.HalfEdges) / 2
+	var hullEdges int
+	for i := 0; i < edgeCount; i++ {
+		if m.HalfEdges[i].Twin == None {
+			hullEdges++
+		}
+	}
 	return Stats{
 		PointCount:    len(m.Points),
-		TriangleCount: triCount,
-		EdgeCount:     len(m.Edges),
-		HullEdges:     len(m.Boundary),
+		TriangleCount: len(m.Triangles),
+		EdgeCount:     edgeCount,
+		HullEdges:     hullEdges,
 	}
 }
 
