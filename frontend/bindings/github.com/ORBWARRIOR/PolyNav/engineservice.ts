@@ -17,20 +17,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as engine$0 from "./engine/models.js";
 
 /**
- * FindPath plans a path through the triangulated mesh.
- */
-export function FindPath(mesh: engine$0.Mesh | null, start: engine$0.Point, goal: engine$0.Point): $CancellablePromise<engine$0.Point[] | null> {
-    return $Call.ByID(3945717507, mesh, start, goal);
-}
-
-/**
- * Status returns the engine readiness state.
- */
-export function Status(): $CancellablePromise<string> {
-    return $Call.ByID(4152919929);
-}
-
-/**
  * Triangulate runs Delaunay triangulation and returns a serialisable result.
  * The frontend receives triangles as flat index arrays ready for WebGL / Canvas.
  */
