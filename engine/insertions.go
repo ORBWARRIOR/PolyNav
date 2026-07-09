@@ -1,10 +1,56 @@
 package engine
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
-func InsertPoint(m *Mesh, point Point) *Mesh {
+func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
+	edge, ok := WalkToPoint(m, p)
+	if !ok {
+		return m, fmt.Errorf("Failed to walk to point %v", p)
+	}
 
-	return m
+	return m, nil
+}
+
+// Returns an edge of the triangle bounding P
+func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
+	currentEdge := m.LastInsertedEdge
+	maxIter := len(m.Triangles)
+	for i := 0; i < maxIter; i++ {
+		crossed := false
+		for i := 0; i < 3; i++ {
+			nextEdge := m.HalfEdges[currentEdge].Next
+			a := m.HalfEdges[currentEdge].Origin
+			b := m.HalfEdges[nextEdge].Origin
+
+			if Orient(m.Points[a], m.Points[b], p) < -Epsilon { // Negative area significant of Epsilon, RHS
+				twin := m.HalfEdges[currentEdge].Twin // Jump to neighbour
+				if twin == NoneEdge {
+					return 0, false
+				}
+				// P cannot be right of twin, preemptively walk to next edge
+				currentEdge = m.HalfEdges[twin].Next
+				crossed = true
+				break
+			}
+			currentEdge = nextEdge
+		}
+		// If no jump occurs, we have encountered the triangle bounding point P
+		if !crossed {
+			return currentEdge, true
+		}
+	}
+	// failed to walk
+	return 0, false
+}
+
+// returns the signed area of a triangle * 2
+func Orient(a, b, c Point) float64 {
+	// the cross product tells us if a point is on LHS or RHS of an edge
+	// Positive = LHS, Negative = RHS, -Epsilon < x < Epsilon = collinear
+	return (b.X-a.X)*(c.Y-a.Y) - (b.Y-a.Y)*(c.X-a.X)
 }
 
 // GetCircumcircle returns the circumcentre (ux, uy) and squared radius rSqrd
