@@ -83,7 +83,7 @@ func NewMeshWithSuperTriangle(lengthPoints int) *Mesh {
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 2, Twin: 1, Next: 3, Triangle: NoneTriangle}) // Edge 4
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle}) // Edge 5
 
-	m.LastInsertedEdge = m.HalfEdges[1].Next // EdgeID of the last internal edge
+	m.LastInsertedEdge = EdgeID(2) // EdgeID of the last internal edge
 	return m
 }
 

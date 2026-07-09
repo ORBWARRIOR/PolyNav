@@ -7,12 +7,10 @@ import (
 // EngineService exposes engine/ algorithms to the Wails frontend.
 // Each exported method becomes an async callable in TypeScript via the
 // auto-generated bindings (run `make bindings` after adding methods).
-type EngineService struct {
-	eng *engine.Engine
-}
+type EngineService struct{}
 
 func NewEngineService() *EngineService {
-	return &EngineService{eng: engine.NewEngine()}
+	return &EngineService{}
 }
 
 // Triangulate runs Delaunay triangulation and returns a serialisable result.
