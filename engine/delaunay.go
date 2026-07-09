@@ -47,10 +47,9 @@ func Triangulate(points []Point) (*Mesh, error) {
 		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", length)
 	}
 
-	mesh := NewMeshWithSuperTriangle(float64(length))
-
+	mesh := NewMeshWithSuperTriangle(length)
 	for i := range length {
-		InsertPoint(mesh, uniq[i])
+		InsertPoint(mesh, uniq[i], VertexID(i+3))
 	}
 
 	return &Mesh{
@@ -58,12 +57,11 @@ func Triangulate(points []Point) (*Mesh, error) {
 	}, nil
 }
 
-func NewMeshWithSuperTriangle(lengthPoints float64) *Mesh {
-	estimatedPoints := int32(lengthPoints * 2.5)
+func NewMeshWithSuperTriangle(lengthPoints int) *Mesh {
 	m := &Mesh{
-		Points:    make([]Point, 0, estimatedPoints+3),
-		HalfEdges: make([]HalfEdge, 0, estimatedPoints*6),
-		Triangles: make([]Triangle, 0, estimatedPoints*2),
+		Points:    make([]Point, 0, lengthPoints+3),    // Points + Super Triangle
+		HalfEdges: make([]HalfEdge, 0, lengthPoints*6), // TODO:
+		Triangles: make([]Triangle, 0, lengthPoints*2), // Look into Eulers Formula
 	}
 
 	// Add Super-Triangle Vertices
@@ -71,8 +69,8 @@ func NewMeshWithSuperTriangle(lengthPoints float64) *Mesh {
 	m.Points = append(m.Points, Point{100, -100})  // VertexID 1
 	m.Points = append(m.Points, Point{0, 100})     // VertexID 2
 
-	// Add Face 0 (The Super-Triangle)
-	m.Triangles = append(m.Triangles, Triangle{Edge: 0}) // FaceID 0
+	// Add Triangle 0 (The Super-Triangle)
+	m.addTriangle(0) // TriangleID 0
 
 	// Add the 3 Internal Half-Edges (Counter-Clockwise)
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 3, Next: 1, Triangle: 0}) // Edge 0
@@ -80,11 +78,12 @@ func NewMeshWithSuperTriangle(lengthPoints float64) *Mesh {
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 2, Twin: 5, Next: 0, Triangle: 0}) // Edge 2
 
 	// Add the 3 External Boundary Half-Edges (Clockwise Twins)
-	// Their Face is set to -1 (None) because they face outward to infinity
-	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 1, Twin: 0, Next: 5, Triangle: -1}) // Edge 3
-	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 2, Twin: 1, Next: 3, Triangle: -1}) // Edge 4
-	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 2, Next: 4, Triangle: -1}) // Edge 5
+	// Their Triangle is set to -1 (None) because they face outward to infinity
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 1, Twin: 0, Next: 5, Triangle: NoneTriangle}) // Edge 3
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 2, Twin: 1, Next: 3, Triangle: NoneTriangle}) // Edge 4
+	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle}) // Edge 5
 
+	m.LastInsertedEdge = EdgeID(2) // EdgeID of the last internal edge
 	return m
 }
 
@@ -94,7 +93,7 @@ func MeshStats(m *Mesh) Stats {
 	edgeCount := len(m.HalfEdges) / 2
 	var hullEdges int
 	for i := 0; i < edgeCount; i++ {
-		if m.HalfEdges[i].Twin == None {
+		if m.HalfEdges[i].Twin == NoneEdge {
 			hullEdges++
 		}
 	}
