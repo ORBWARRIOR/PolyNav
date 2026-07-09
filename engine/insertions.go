@@ -11,8 +11,9 @@ func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
 		return m, fmt.Errorf("Failed to walk to point %v", p)
 	}
 
+	// Determine if P lies inside or on the edge of the triangle
 	onEdge := false
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		nextEdge := m.HalfEdges[edge].Next
 		a := m.HalfEdges[edge].Origin
 		b := m.HalfEdges[nextEdge].Origin
@@ -94,7 +95,7 @@ func splitTriangle(m *Mesh, AB EdgeID, p VertexID) [3]EdgeID {
 	CP, PC := m.addEdgePair(c, p)
 	AP, PA := m.addEdgePair(a, p)
 
-	// assign edge properties to each edge
+	// Rewire the new triangles
 	m.HalfEdges[AB].Next = BP
 	m.HalfEdges[BP].Next = PA
 	m.HalfEdges[PA].Next = AB
@@ -117,6 +118,70 @@ func splitTriangle(m *Mesh, AB EdgeID, p VertexID) [3]EdgeID {
 	m.HalfEdges[PC].Triangle = CAP
 
 	return [3]EdgeID{BP, CP, AP}
+}
+
+func splitEdge(m *Mesh, AB EdgeID, p VertexID) [4]EdgeID {
+	BC := m.HalfEdges[AB].Next
+	CA := m.HalfEdges[BC].Next
+	BA := m.HalfEdges[AB].Twin
+	AD := m.HalfEdges[BA].Next
+	DB := m.HalfEdges[AD].Next
+
+	A := m.HalfEdges[AB].Origin
+	B := m.HalfEdges[BC].Origin
+	C := m.HalfEdges[CA].Origin
+	D := m.HalfEdges[DB].Origin
+
+	m.Triangles[m.HalfEdges[AB].Triangle].Tombstoned = true
+	m.Triangles[m.HalfEdges[BA].Triangle].Tombstoned = true
+
+	APC := m.addTriangle(AB)
+	CPB := m.addTriangle(BC)
+	DPA := m.addTriangle(BA)
+	BPD := m.addTriangle(DB)
+
+	PB, BP := m.addEdgePair(p, B)
+	PC, CP := m.addEdgePair(p, C)
+	DP, PD := m.addEdgePair(D, p)
+
+	// Repurpose AB to AP					\\       	A--------C
+	m.HalfEdges[AB].Origin = A //			\\       	 \      |
+	m.HalfEdges[AB].Next = PC  //			\\       	  \    |
+	m.HalfEdges[AB].Twin = BA  //			\\       	   \  |
+	// Rewire the triangle					\\       	    \|
+	m.HalfEdges[PC].Next = CA      //		\\       	     P
+	m.HalfEdges[CA].Next = AB      //		\\       	      \
+	m.HalfEdges[AB].Triangle = APC //		\\       	       \
+	m.HalfEdges[PC].Triangle = APC //		\\       	        \
+	m.HalfEdges[CA].Triangle = APC //		\\       	         B
+	//										\\
+	// Repurpose BA to PA//					\\       	A
+	m.HalfEdges[BA].Origin = p //			\\       	\\
+	m.HalfEdges[BA].Next = AD  //			\\       	\ \
+	m.HalfEdges[BA].Twin = AB  //			\\       	\  \
+	// Rewire the triangle  				\\       	\   \
+	m.HalfEdges[AD].Next = DP      //		\\       	\    P
+	m.HalfEdges[DP].Next = BA      //		\\       	\   | \
+	m.HalfEdges[BA].Triangle = DPA //		\\       	\  |   \
+	m.HalfEdges[AD].Triangle = DPA //		\\       	\ |     \
+	m.HalfEdges[DP].Triangle = DPA //		\\       	 D       B
+	//										\\
+	//										\\       			  C
+	m.HalfEdges[PB].Next = BC      //		\\          		 /\
+	m.HalfEdges[BC].Next = CP      //		\\       			/ \
+	m.HalfEdges[CP].Next = PB      //		\\       		   /  \
+	m.HalfEdges[PB].Triangle = CPB //		\\       		  P   \
+	m.HalfEdges[BC].Triangle = CPB //		\\       		   \  \
+	m.HalfEdges[CP].Triangle = CPB //		\\       			\ \
+	//										\\                   \\
+	m.HalfEdges[BP].Next = PD      //		\\       			  B
+	m.HalfEdges[PD].Next = DB      //		\\
+	m.HalfEdges[DB].Next = BP      //		\\       	    P
+	m.HalfEdges[BP].Triangle = BPD //		\\       	   | \
+	m.HalfEdges[PD].Triangle = BPD //		\\       	  |   \
+	m.HalfEdges[DB].Triangle = BPD //		\\       	 |     \
+	// 										\\       	D-------B
+	return [4]EdgeID{AB, BP, CP, DP}
 }
 
 // GetCircumcircle returns the circumcentre (ux, uy) and squared radius rSqrd
