@@ -71,15 +71,6 @@ func (m *Mesh) GetTriangleVertices(tID TriangleID) (VertexID, VertexID, VertexID
 	return m.HalfEdges[edgeA].Origin, m.HalfEdges[edgeB].Origin, m.HalfEdges[edgeC].Origin, true
 }
 
-// GetNeighboringFace returns the TriangleID sharing the given edge, or -1 if none
-func (m *Mesh) GetNeighboringFace(eID EdgeID) TriangleID {
-	twinID := m.HalfEdges[eID].Twin
-	if twinID == NoneEdge {
-		return -1
-	}
-	return m.HalfEdges[twinID].Triangle
-}
-
 func (m *Mesh) addTriangle(edge EdgeID) TriangleID {
 	m.Triangles = append(m.Triangles, Triangle{Edge: edge, Tombstoned: false})
 	return TriangleID(len(m.Triangles) - 1)
@@ -90,4 +81,9 @@ func (m *Mesh) addEdgePair(x, p VertexID) (EdgeID, EdgeID) {
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: x, Twin: id + 1, Next: NoneEdge, Triangle: NoneTriangle})
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: p, Twin: id, Next: NoneEdge, Triangle: NoneTriangle})
 	return id, id + 1
+}
+
+func (m *Mesh) addPoint(p Point) VertexID {
+	m.Points = append(m.Points, p)
+	return VertexID(len(m.Points) - 1)
 }

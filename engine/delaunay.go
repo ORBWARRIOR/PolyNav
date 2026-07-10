@@ -6,62 +6,32 @@ import (
 	"sort"
 )
 
-// Triangulate performs Delaunay triangulation via the Bowyer-Watson algorithm.
-//
-// Algorithm outline (implement as dummy stubs — fill in the real math):
-//
-//  1. Input normalisation
-//     normalisePoints() — scale all points to 1x1 square
-//     deduplicatePoints() — remove coincident points
-//
-//  2. Super-triangle
-//     Create a triangle large enough to contain all points.
-//     { (-100,-100), (+100,-100), (0,+100) } in normalised space.
-//     The super-triangle vertices are appended at the end of the working slice.
-//
-//  3. Incremental insertion (Bowyer-Watson)
-//     For each input point P:
-//     a) Find all "bad" triangles whose circumcircle contains P
-//     (use GetCircumcircle)
-//     b) The union of bad triangles forms a polygon cavity.
-//     Collect all edges of bad triangles.
-//     c) Remove interior edges (edges shared by two bad triangles).
-//     The remaining edges form the boundary of the cavity.
-//     d) Connect P to every vertex of the cavity boundary.
-//     This forms the new triangulation.
-//
-//  4. Super-triangle cleanup
-//     Remove any triangle that shares a vertex with the super-triangle.
-//
-//  5. Output assembly
-//     Build the Mesh: copy surviving triangles, extract unique edges,
-//     identify boundary (hull) edges.
+// Triangulate performs Delaunay triangulation via the Sloan incremental insertion algorithm
 func Triangulate(points []Point) (*Mesh, error) {
 	if len(points) < 3 {
 		return nil, fmt.Errorf("delaunay: need at least 3 points, got %d", len(points))
 	}
-
-	uniq := deduplicatePoints(normalisePoints(points))
-	length := len(uniq)
-	if length < 3 {
-		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", length)
+	normalised, scale, minX, minY := normalisePoints(points)
+	uniq := deduplicatePoints(normalised)
+	numOfPoints := len(uniq)
+	if numOfPoints < 3 {
+		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", numOfPoints)
 	}
 
-	mesh := NewMeshWithSuperTriangle(length)
-	for i := range length {
+	mesh := NewMeshWithSuperTriangle(numOfPoints)
+	for i := range numOfPoints {
 		InsertPoint(mesh, uniq[i], VertexID(i+3))
 	}
-
-	return &Mesh{
-		Points: uniq,
-	}, nil
+	compact(mesh)
+	mesh.Points = denormalise(mesh.Points, scale, minX, minY)
+	return mesh, nil
 }
 
-func NewMeshWithSuperTriangle(lengthPoints int) *Mesh {
+func NewMeshWithSuperTriangle(numOfPoints int) *Mesh {
 	m := &Mesh{
-		Points:    make([]Point, 0, lengthPoints+3),    // Points + Super Triangle
-		HalfEdges: make([]HalfEdge, 0, lengthPoints*6), // TODO:
-		Triangles: make([]Triangle, 0, lengthPoints*2), // Look into Eulers Formula
+		Points:    make([]Point, 0, numOfPoints+3),    // Points + Super Triangle
+		HalfEdges: make([]HalfEdge, 0, numOfPoints*6), // TODO:
+		Triangles: make([]Triangle, 0, numOfPoints*2), // Look into Eulers Formula
 	}
 
 	// Add Super-Triangle Vertices
@@ -105,7 +75,8 @@ func MeshStats(m *Mesh) Stats {
 	}
 }
 
-func normalisePoints(points []Point) []Point {
+func normalisePoints(points []Point) ([]Point, float64, float64, float64) {
+
 	minX, minY := math.MaxFloat64, math.MaxFloat64
 	maxX, maxY := -math.MaxFloat64, -math.MaxFloat64
 
@@ -136,7 +107,7 @@ func normalisePoints(points []Point) []Point {
 			Y: (pt.Y - minY) / scale,
 		}
 	}
-	return normalised
+	return normalised, scale, minX, minY
 }
 
 func deduplicatePoints(points []Point) []Point {
@@ -159,4 +130,79 @@ func deduplicatePoints(points []Point) []Point {
 
 func isCoincident(p1, p2 Point) bool {
 	return math.Abs(p1.X-p2.X) < Epsilon && math.Abs(p1.Y-p2.Y) < Epsilon
+}
+
+func denormalise(points []Point, scale, minX, minY float64) []Point {
+	denormalised := make([]Point, len(points))
+	for i, pt := range points {
+		denormalised[i] = Point{
+			X: pt.X*scale + minX,
+			Y: pt.Y*scale + minY,
+		}
+	}
+	return denormalised
+}
+
+func compact(m *Mesh) {
+	// Build the new half edge slice, ignores tombstoned triangles
+	var newEdges []HalfEdge
+	edgesMap := make(map[EdgeID]EdgeID)
+	for oldIdx, ohe := range m.HalfEdges {
+		tID := ohe.Triangle
+		if m.Triangles[tID].Tombstoned {
+			continue
+		}
+		newIdx := EdgeID(len(newEdges))
+		newEdges = append(newEdges, ohe)
+		edgesMap[EdgeID(oldIdx)] = newIdx
+	}
+
+	// Build the new triangle list, ignores tombstoned triangles
+	var newTriangles []Triangle
+	trianglesMap := make(map[TriangleID]TriangleID)
+	for oldIdx, tri := range m.Triangles {
+		if tri.Tombstoned {
+			continue
+		}
+		newIdx := TriangleID(len(newTriangles))
+		newTriangles = append(newTriangles, tri)
+		trianglesMap[TriangleID(oldIdx)] = newIdx
+	}
+
+	// Update half edge pointers
+	for i := range newEdges {
+		he := &newEdges[i]
+		if he.Next != NoneEdge {
+			if newNext, ok := edgesMap[he.Next]; ok {
+				he.Next = newNext
+			} else {
+				he.Next = NoneEdge
+			}
+		}
+		if he.Twin != NoneEdge {
+			if newTwin, ok := edgesMap[he.Twin]; ok {
+				he.Twin = newTwin
+			} else {
+				he.Twin = NoneEdge
+			}
+		}
+		if he.Triangle != NoneTriangle {
+			if newTri, ok := trianglesMap[he.Triangle]; ok {
+				he.Triangle = newTri
+			} else {
+				he.Triangle = NoneTriangle
+			}
+		}
+	}
+
+	// Update triangle pointers
+	for i := range newTriangles {
+		tri := &newTriangles[i]
+		if newEdge, ok := edgesMap[tri.Edge]; ok {
+			tri.Edge = newEdge
+		}
+	}
+
+	m.HalfEdges = newEdges
+	m.Triangles = newTriangles
 }
