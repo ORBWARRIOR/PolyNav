@@ -211,4 +211,9 @@ func compact(m *Mesh) {
 
 	m.HalfEdges = newEdges
 	m.Triangles = newTriangles
+	if newLast, ok := edgesMap[m.LastInsertedEdge]; ok {
+		m.LastInsertedEdge = newLast
+	} else {
+		m.LastInsertedEdge = EdgeID(len(newEdges) / 2) // Rough midpoint
+	}
 }
