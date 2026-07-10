@@ -59,7 +59,7 @@ func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 			a := currentHE.Origin
 			b := m.HalfEdges[nextEdge].Origin
 
-			if Orient(m.Points[a], m.Points[b], p) < 0 { // Negative area significant of Epsilon, RHS
+			if Orient(m.Points[a], m.Points[b], p) < -Epsilon { // Negative area significant of Epsilon, RHS
 				twin := currentHE.Twin // Jump to neighbour
 				if twin == NoneEdge {
 					return 0, false
