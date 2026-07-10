@@ -12,6 +12,7 @@ type VertexID int32
 type EdgeID int32
 type TriangleID int32
 
+const NoneVertex VertexID = -1
 const NoneEdge EdgeID = -1
 const NoneTriangle TriangleID = -1
 

@@ -4,11 +4,11 @@ import (
 	"fmt"
 )
 
-func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
-	m.addPoint(p)
-	edge, ok := WalkToPoint(m, p)
+func InsertPoint(m *Mesh, p Point) (*Mesh, error) {
+	pID := m.addPoint(p)
+	edge, ok := walkToPoint(m, p)
 	if !ok {
-		return m, fmt.Errorf("Failed to walk to point %v", p)
+		return m, fmt.Errorf("failed to walk to point %v", p)
 	}
 
 	// Determine if P lies inside or on the edge of the triangle
@@ -17,7 +17,7 @@ func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
 		nextEdge := m.HalfEdges[edge].Next
 		a := m.HalfEdges[edge].Origin
 		b := m.HalfEdges[nextEdge].Origin
-		if Orient(m.Points[a], m.Points[b], p) < Epsilon { // Negligible area, treat as collinear
+		if orient(m.Points[a], m.Points[b], p) < Epsilon { // Negligible area, treat as collinear
 			onEdge = true
 			break
 		}
@@ -41,7 +41,7 @@ func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
 }
 
 // Returns an edge of the triangle bounding P
-func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
+func walkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 	currentEdge := m.LastInsertedEdge
 	maxIter := len(m.Triangles)
 	for range maxIter {
@@ -59,7 +59,7 @@ func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 			a := currentHE.Origin
 			b := m.HalfEdges[nextEdge].Origin
 
-			if Orient(m.Points[a], m.Points[b], p) < -Epsilon { // Negative area significant of Epsilon, RHS
+			if orient(m.Points[a], m.Points[b], p) < -Epsilon { // Negative area significant of Epsilon, RHS
 				twin := currentHE.Twin // Jump to neighbour
 				if twin == NoneEdge {
 					return 0, false
@@ -81,7 +81,7 @@ func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 }
 
 // returns the signed area of a triangle * 2
-func Orient(a, b, c Point) float64 {
+func orient(a, b, c Point) float64 {
 	// the cross product tells us if a point is on LHS or RHS of an edge
 	// Positive = LHS, Negative = RHS, -Epsilon < x < Epsilon = collinear
 	return (b.X-a.X)*(c.Y-a.Y) - (b.Y-a.Y)*(c.X-a.X)
@@ -143,8 +143,12 @@ func splitEdge(m *Mesh, AB EdgeID, p VertexID) [4]EdgeID {
 	C := m.HalfEdges[CA].Origin
 	D := m.HalfEdges[DB].Origin
 
-	m.Triangles[m.HalfEdges[AB].Triangle].Tombstoned = true
-	m.Triangles[m.HalfEdges[BA].Triangle].Tombstoned = true
+	if tID := m.HalfEdges[AB].Triangle; tID != NoneTriangle {
+		m.Triangles[tID].Tombstoned = true
+	}
+	if tID := m.HalfEdges[AB].Triangle; tID != NoneTriangle {
+		m.Triangles[tID].Tombstoned = true
+	}
 
 	APC := m.addTriangle(AB)
 	CPB := m.addTriangle(BC)

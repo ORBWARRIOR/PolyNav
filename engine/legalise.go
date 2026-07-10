@@ -6,8 +6,8 @@ func legaliseEdge(m *Mesh, edge EdgeID, p VertexID) {
 	if edge == NoneEdge || int(edge) > len(m.HalfEdges) {
 		return
 	}
-	tID := m.HalfEdges[edge].Triangle
-	if tID == NoneTriangle || m.Triangles[tID].Tombstoned {
+
+	if tID := m.HalfEdges[edge].Triangle; tID == NoneTriangle || m.Triangles[tID].Tombstoned {
 		return
 	}
 	oppEdge := getEdgeOppositeP(m, edge, p)
@@ -16,14 +16,22 @@ func legaliseEdge(m *Mesh, edge EdgeID, p VertexID) {
 	if twin == NoneEdge {
 		return
 	}
-	twinTID := m.HalfEdges[twin].Triangle
-	if twinTID == NoneTriangle || m.Triangles[twinTID].Tombstoned {
+
+	if twinTID := m.HalfEdges[twin].Triangle; twinTID == NoneTriangle || m.Triangles[twinTID].Tombstoned {
 		return
 	}
 
 	A := m.HalfEdges[oppEdge].Origin
 	B := m.HalfEdges[twin].Origin
-	C := m.HalfEdges[m.HalfEdges[m.HalfEdges[twin].Next].Next].Origin
+	C := NoneVertex
+	if AC := m.HalfEdges[twin].Next; AC != NoneEdge {
+		if CB := m.HalfEdges[AC].Next; CB != NoneEdge {
+			C = m.HalfEdges[CB].Origin
+		}
+	}
+	if C == NoneVertex {
+		return
+	}
 
 	AC := NoneEdge
 	CB := NoneEdge
@@ -41,12 +49,20 @@ func flipEdge(m *Mesh, AB EdgeID) {
 	if BA == NoneEdge {
 		return
 	}
-
 	BP := m.HalfEdges[AB].Next
+	if BP == NoneEdge {
+		return
+	}
 	PA := m.HalfEdges[BP].Next
+	if PA == NoneEdge {
+		return
+	}
 	AC := m.HalfEdges[BA].Next
+	if AC == NoneEdge {
+		return
+	}
 	CB := m.HalfEdges[AC].Next
-	if AB == NoneEdge || BP == NoneEdge || PA == NoneEdge || BA == NoneEdge || AC == NoneEdge || CB == NoneEdge {
+	if CB == NoneEdge {
 		return
 	}
 
@@ -75,7 +91,7 @@ func flipEdge(m *Mesh, AB EdgeID) {
 	m.HalfEdges[AB].Triangle = t3
 	m.HalfEdges[CB].Triangle = t3
 
-	// Repurpose BA to CP, reqire the triangle
+	// Repurpose BA to CP, rewire the triangle
 	m.HalfEdges[AC].Next = BA
 	m.HalfEdges[BA].Origin = C
 	m.HalfEdges[BA].Next = PA
@@ -87,15 +103,15 @@ func flipEdge(m *Mesh, AB EdgeID) {
 }
 
 // Orients itself according to P, returns the edge opposite P
-func getEdgeOppositeP(m *Mesh, edge EdgeID, p VertexID) EdgeID {
+func getEdgeOppositeP(m *Mesh, seedEdge EdgeID, p VertexID) EdgeID {
 	// After insertion, edge is expected to be incident to P
 	// From recursion, edge is expected to be the edge opposite P
-	if he := m.HalfEdges[edge]; he.Origin == p {
+	if he := m.HalfEdges[seedEdge]; he.Origin == p {
 		return he.Next
 	} else if he2 := m.HalfEdges[he.Next]; he2.Origin == p {
 		return he2.Next
 	} else {
-		return edge
+		return seedEdge
 	}
 }
 

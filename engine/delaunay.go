@@ -23,8 +23,9 @@ func Triangulate(points []Point) (*Mesh, error) {
 		return nil, err
 	}
 
+	mesh := NewMeshWithSuperTriangle(numOfPoints)
 	for i := range numOfPoints {
-		InsertPoint(mesh, uniq[i], VertexID(i+3))
+		InsertPoint(mesh, uniq[i])
 	}
 	compact(mesh)
 	mesh.Points = denormalisePoints(mesh.Points, scale, minX, minY)
@@ -35,6 +36,7 @@ func NewMeshWithSuperTriangle(numOfPoints int) (*Mesh, error) {
 	if numOfPoints < 3 {
 		return nil, fmt.Errorf("delaunay: received %d points after dedup, need 3", numOfPoints)
 	}
+
 	m := &Mesh{
 		Points:    make([]Point, 0, numOfPoints+3),    // Points + Super Triangle
 		HalfEdges: make([]HalfEdge, 0, numOfPoints*6), // TODO:
@@ -74,7 +76,7 @@ func MeshStats(m *Mesh) Stats {
 		}
 	}
 	return Stats{
-		PointCount:    len(m.Points),
+		PointCount:    len(m.Points) - 3,
 		TriangleCount: len(m.Triangles),
 		EdgeCount:     edgeCount / 2,
 		HullEdges:     hullEdges,
