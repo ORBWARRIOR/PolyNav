@@ -5,6 +5,7 @@ import (
 )
 
 func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
+	m.addPoint(p)
 	edge, ok := WalkToPoint(m, p)
 	if !ok {
 		return m, fmt.Errorf("Failed to walk to point %v", p)

@@ -82,3 +82,8 @@ func (m *Mesh) addEdgePair(x, p VertexID) (EdgeID, EdgeID) {
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: p, Twin: id, Next: NoneEdge, Triangle: NoneTriangle})
 	return id, id + 1
 }
+
+func (m *Mesh) addPoint(p Point) VertexID {
+	m.Points = append(m.Points, p)
+	return VertexID(len(m.Points) - 1)
+}
