@@ -34,7 +34,6 @@ func legaliseEdge(m *Mesh, edge EdgeID, p VertexID) {
 		legaliseEdge(m, AC, p)
 		legaliseEdge(m, CB, p)
 	}
-
 }
 
 func flipEdge(m *Mesh, AB EdgeID) {
