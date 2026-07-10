@@ -36,6 +36,7 @@ func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
 		legaliseEdge(m, edge, pID)
 	}
 
+	m.LastInsertedEdge = newEdges[0]
 	return m, nil
 }
 
@@ -45,13 +46,18 @@ func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 	maxIter := len(m.Triangles)
 	for range maxIter {
 		crossed := false
+
 		for range 3 {
-			nextEdge := m.HalfEdges[currentEdge].Next
-			a := m.HalfEdges[currentEdge].Origin
+			currentHE := m.HalfEdges[currentEdge]
+			if tID := currentHE.Triangle; tID == NoneTriangle || m.Triangles[tID].Tombstoned {
+				continue // Do not traverse deleted triangles
+			}
+			nextEdge := currentHE.Next
+			a := currentHE.Origin
 			b := m.HalfEdges[nextEdge].Origin
 
 			if Orient(m.Points[a], m.Points[b], p) < -Epsilon { // Negative area significant of Epsilon, RHS
-				twin := m.HalfEdges[currentEdge].Twin // Jump to neighbour
+				twin := currentHE.Twin // Jump to neighbour
 				if twin == NoneEdge {
 					return 0, false
 				}
