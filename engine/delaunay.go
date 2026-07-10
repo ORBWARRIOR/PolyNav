@@ -6,38 +6,32 @@ import (
 	"sort"
 )
 
-var (
-	scale float64
-	minX  = math.MaxFloat64
-	minY  = math.MaxFloat64
-)
-
 // Triangulate performs Delaunay triangulation via the Sloan incremental insertion algorithm
 func Triangulate(points []Point) (*Mesh, error) {
 	if len(points) < 3 {
 		return nil, fmt.Errorf("delaunay: need at least 3 points, got %d", len(points))
 	}
-
-	uniq := deduplicatePoints(normalisePoints(points))
-	length := len(uniq)
-	if length < 3 {
-		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", length)
+	normalised, scale, minX, minY := normalisePoints(points)
+	uniq := deduplicatePoints(normalised)
+	numOfPoints := len(uniq)
+	if numOfPoints < 3 {
+		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", numOfPoints)
 	}
 
-	mesh := NewMeshWithSuperTriangle(length)
-	for i := range length {
+	mesh := NewMeshWithSuperTriangle(numOfPoints)
+	for i := range numOfPoints {
 		InsertPoint(mesh, uniq[i], VertexID(i+3))
 	}
 	compact(mesh)
-	denormalise(mesh.Points)
+	mesh.Points = denormalise(mesh.Points, scale, minX, minY)
 	return mesh, nil
 }
 
-func NewMeshWithSuperTriangle(lengthPoints int) *Mesh {
+func NewMeshWithSuperTriangle(numOfPoints int) *Mesh {
 	m := &Mesh{
-		Points:    make([]Point, 0, lengthPoints+3),    // Points + Super Triangle
-		HalfEdges: make([]HalfEdge, 0, lengthPoints*6), // TODO:
-		Triangles: make([]Triangle, 0, lengthPoints*2), // Look into Eulers Formula
+		Points:    make([]Point, 0, numOfPoints+3),    // Points + Super Triangle
+		HalfEdges: make([]HalfEdge, 0, numOfPoints*6), // TODO:
+		Triangles: make([]Triangle, 0, numOfPoints*2), // Look into Eulers Formula
 	}
 
 	// Add Super-Triangle Vertices
@@ -81,7 +75,9 @@ func MeshStats(m *Mesh) Stats {
 	}
 }
 
-func normalisePoints(points []Point) []Point {
+func normalisePoints(points []Point) ([]Point, float64, float64, float64) {
+
+	minX, minY := math.MaxFloat64, math.MaxFloat64
 	maxX, maxY := -math.MaxFloat64, -math.MaxFloat64
 
 	for _, pt := range points {
@@ -99,7 +95,7 @@ func normalisePoints(points []Point) []Point {
 		}
 	}
 
-	scale = math.Max(maxX-minX, maxY-minY)
+	scale := math.Max(maxX-minX, maxY-minY)
 	if scale <= Epsilon {
 		scale = 1.0
 	}
@@ -111,7 +107,7 @@ func normalisePoints(points []Point) []Point {
 			Y: (pt.Y - minY) / scale,
 		}
 	}
-	return normalised
+	return normalised, scale, minX, minY
 }
 
 func deduplicatePoints(points []Point) []Point {
@@ -136,7 +132,7 @@ func isCoincident(p1, p2 Point) bool {
 	return math.Abs(p1.X-p2.X) < Epsilon && math.Abs(p1.Y-p2.Y) < Epsilon
 }
 
-func denormalise(points []Point) []Point {
+func denormalise(points []Point, scale, minX, minY float64) []Point {
 	denormalised := make([]Point, len(points))
 	for i, pt := range points {
 		denormalised[i] = Point{
@@ -153,7 +149,7 @@ func compact(m *Mesh) {
 	edgesMap := make(map[EdgeID]EdgeID)
 	for oldIdx, ohe := range m.HalfEdges {
 		tID := ohe.Triangle
-		if tID == NoneTriangle || m.Triangles[tID].Tombstoned {
+		if m.Triangles[tID].Tombstoned {
 			continue
 		}
 		newIdx := EdgeID(len(newEdges))
@@ -209,5 +205,4 @@ func compact(m *Mesh) {
 
 	m.HalfEdges = newEdges
 	m.Triangles = newTriangles
-	m.LastInsertedEdge = EdgeID(len(m.HalfEdges) / 2)
 }
