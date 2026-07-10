@@ -42,9 +42,9 @@ func InsertPoint(m *Mesh, p Point, pID VertexID) (*Mesh, error) {
 func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 	currentEdge := m.LastInsertedEdge
 	maxIter := len(m.Triangles)
-	for i := 0; i < maxIter; i++ {
+	for range maxIter {
 		crossed := false
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			nextEdge := m.HalfEdges[currentEdge].Next
 			a := m.HalfEdges[currentEdge].Origin
 			b := m.HalfEdges[nextEdge].Origin
