@@ -48,15 +48,18 @@ func WalkToPoint(m *Mesh, p Point) (EdgeID, bool) {
 		crossed := false
 
 		for range 3 {
+
 			currentHE := m.HalfEdges[currentEdge]
 			if tID := currentHE.Triangle; tID == NoneTriangle || m.Triangles[tID].Tombstoned {
-				continue // Do not traverse deleted triangles
+				currentEdge = m.HalfEdges[currentHE.Twin].Next // Do not traverse deleted triangles, jump to neighbour
+				crossed = true
+				break
 			}
 			nextEdge := currentHE.Next
 			a := currentHE.Origin
 			b := m.HalfEdges[nextEdge].Origin
 
-			if Orient(m.Points[a], m.Points[b], p) < -Epsilon { // Negative area significant of Epsilon, RHS
+			if Orient(m.Points[a], m.Points[b], p) < 0 { // Negative area significant of Epsilon, RHS
 				twin := currentHE.Twin // Jump to neighbour
 				if twin == NoneEdge {
 					return 0, false
@@ -163,7 +166,7 @@ func splitEdge(m *Mesh, AB EdgeID, p VertexID) [4]EdgeID {
 	m.HalfEdges[PC].Triangle = APC //		\\       	        \
 	m.HalfEdges[CA].Triangle = APC //		\\       	         B
 	//										\\
-	// Repurpose BA to PA//					\\       	A
+	// Repurpose BA to PA					\\       	A
 	m.HalfEdges[BA].Origin = p //			\\       	\\
 	m.HalfEdges[BA].Next = AD  //			\\       	\ \
 	m.HalfEdges[BA].Twin = AB  //			\\       	\  \
