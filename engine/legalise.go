@@ -109,7 +109,7 @@ func pointInCircumcircle(pt, a, b, c Point) bool {
 	dx := pt.X - cx
 	dy := pt.Y - cy
 	// if rSqrd > pt's distance^2, it is inside the circumcircle
-	return dx*dx+dy*dy <= rSqrd+Epsilon
+	return rSqrd+Epsilon > dx*dx+dy*dy
 }
 
 // GetCircumcircle returns the circumcentre (ux, uy) and squared radius rSqrd
