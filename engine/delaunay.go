@@ -18,7 +18,11 @@ func Triangulate(points []Point) (*Mesh, error) {
 		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", numOfPoints)
 	}
 
-	mesh := NewMeshWithSuperTriangle(numOfPoints)
+	mesh, err := NewMeshWithSuperTriangle(numOfPoints)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range numOfPoints {
 		InsertPoint(mesh, uniq[i], VertexID(i+3))
 	}
@@ -27,7 +31,10 @@ func Triangulate(points []Point) (*Mesh, error) {
 	return mesh, nil
 }
 
-func NewMeshWithSuperTriangle(numOfPoints int) *Mesh {
+func NewMeshWithSuperTriangle(numOfPoints int) (*Mesh, error) {
+	if numOfPoints < 3 {
+		return nil, fmt.Errorf("delaunay: received %d points after dedup, need 3", numOfPoints)
+	}
 	m := &Mesh{
 		Points:    make([]Point, 0, numOfPoints+3),    // Points + Super Triangle
 		HalfEdges: make([]HalfEdge, 0, numOfPoints*6), // TODO:
@@ -54,7 +61,7 @@ func NewMeshWithSuperTriangle(numOfPoints int) *Mesh {
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle}) // Edge 5
 
 	m.LastInsertedEdge = EdgeID(2) // EdgeID of the last internal edge
-	return m
+	return m, nil
 }
 
 // MeshStats computes summary statistics from a Mesh.
@@ -149,7 +156,7 @@ func compact(m *Mesh) {
 	edgesMap := make(map[EdgeID]EdgeID)
 	for oldIdx, ohe := range m.HalfEdges {
 		tID := ohe.Triangle
-		if m.Triangles[tID].Tombstoned {
+		if tID != NoneTriangle && m.Triangles[tID].Tombstoned {
 			continue
 		}
 		newIdx := EdgeID(len(newEdges))
