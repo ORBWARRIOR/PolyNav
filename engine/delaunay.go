@@ -23,7 +23,7 @@ func Triangulate(points []Point) (*Mesh, error) {
 		InsertPoint(mesh, uniq[i], VertexID(i+3))
 	}
 	compact(mesh)
-	mesh.Points = denormalise(mesh.Points, scale, minX, minY)
+	mesh.Points = denormalisePoints(mesh.Points, scale, minX, minY)
 	return mesh, nil
 }
 
@@ -75,9 +75,9 @@ func MeshStats(m *Mesh) Stats {
 	}
 }
 
-func normalisePoints(points []Point) ([]Point, float64, float64, float64) {
+func normalisePoints(points []Point) (normalised []Point, scale, minX, minY float64) {
 
-	minX, minY := math.MaxFloat64, math.MaxFloat64
+	minX, minY = math.MaxFloat64, math.MaxFloat64
 	maxX, maxY := -math.MaxFloat64, -math.MaxFloat64
 
 	for _, pt := range points {
@@ -95,12 +95,12 @@ func normalisePoints(points []Point) ([]Point, float64, float64, float64) {
 		}
 	}
 
-	scale := math.Max(maxX-minX, maxY-minY)
+	scale = math.Max(maxX-minX, maxY-minY)
 	if scale <= Epsilon {
 		scale = 1.0
 	}
 
-	normalised := make([]Point, len(points))
+	normalised = make([]Point, len(points))
 	for i, pt := range points {
 		normalised[i] = Point{
 			X: (pt.X - minX) / scale,
@@ -132,7 +132,7 @@ func isCoincident(p1, p2 Point) bool {
 	return math.Abs(p1.X-p2.X) < Epsilon && math.Abs(p1.Y-p2.Y) < Epsilon
 }
 
-func denormalise(points []Point, scale, minX, minY float64) []Point {
+func denormalisePoints(points []Point, scale, minX, minY float64) []Point {
 	denormalised := make([]Point, len(points))
 	for i, pt := range points {
 		denormalised[i] = Point{
