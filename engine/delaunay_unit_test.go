@@ -591,3 +591,26 @@ func TestSplitEdge(t *testing.T) {
 	splitEdge(m, 0, 4)
 	assert(t, "mesh", "SplitEdge", m, expectedMesh)
 }
+
+func TestWalkToPoint(t *testing.T) {
+	tests := []struct {
+		name            string
+		m               *Mesh
+		pt              Point
+		expectedEdgeID  EdgeID
+		expectedSuccess bool
+	}{
+		{"PointInTriangle", newFan3(), Point{X: 1, Y: 1}, 7, true},
+		{"PointOnEdge", newFan3(), Point{X: 0, Y: 1}, 2, true},
+		{"PointOutOfBounds", newFan3(), Point{X: 200, Y: 200}, 0, false},
+	}
+
+	for _, tt := range tests {
+		resultEdgeID, ok := WalkToPoint(tt.m, tt.pt)
+
+		assert(t, "success", tt.name, ok, tt.expectedSuccess)
+		if tt.expectedSuccess {
+			assert(t, "edge", tt.name, resultEdgeID, tt.expectedEdgeID)
+		}
+	}
+}
