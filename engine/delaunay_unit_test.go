@@ -614,3 +614,278 @@ func TestWalkToPoint(t *testing.T) {
 		}
 	}
 }
+
+func TestMeshStats(t *testing.T) {
+	m := newSuperTriangle()
+	resultStats := MeshStats(m)
+	expectedStats := Stats{
+		PointCount:    3,
+		EdgeCount:     3,
+		TriangleCount: 1,
+		HullEdges:     3,
+	}
+
+	assert(t, "mesh stats", "MeshStats", resultStats, expectedStats)
+}
+
+func TestFlipEdge(t *testing.T) {
+	makeEdgeFlippingMesh := func(D Point, E Point) *Mesh {
+		return &Mesh{
+			Points: []Point{
+				{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, D, E, // ABPCDE
+			},
+			HalfEdges: []HalfEdge{
+				{Origin: 0, Next: 1, Twin: 3, Triangle: 0},         // 0  AB
+				{Origin: 1, Next: 2, Twin: NoneEdge, Triangle: 0},  // 1  BP
+				{Origin: 2, Next: 0, Twin: NoneEdge, Triangle: 0},  // 2  PA
+				{Origin: 1, Next: 4, Twin: 0, Triangle: 1},         // 3  BA
+				{Origin: 0, Next: 5, Twin: 9, Triangle: 1},         // 4  AC
+				{Origin: 3, Next: 3, Twin: 6, Triangle: 1},         // 5  CB
+				{Origin: 1, Next: 7, Twin: 5, Triangle: 2},         // 6  BC
+				{Origin: 3, Next: 8, Twin: NoneEdge, Triangle: 2},  // 7  CD
+				{Origin: 4, Next: 6, Twin: NoneEdge, Triangle: 2},  // 8  DB
+				{Origin: 3, Next: 10, Twin: 4, Triangle: 3},        // 9  CA
+				{Origin: 0, Next: 11, Twin: NoneEdge, Triangle: 3}, // 10 AE
+				{Origin: 5, Next: 9, Twin: NoneEdge, Triangle: 3},  // 11 EC
+			},
+			Triangles: []Triangle{
+				{Edge: 0, Tombstoned: false},
+				{Edge: 3, Tombstoned: false},
+				{Edge: 6, Tombstoned: false},
+				{Edge: 9, Tombstoned: false},
+			},
+			LastInsertedEdge: 1, // BP
+		}
+	}
+
+	makeFlippedMesh := func(D Point, E Point) *Mesh {
+		return &Mesh{
+			Points: []Point{
+				{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, D, E,
+			},
+			HalfEdges: []HalfEdge{
+				{Origin: 2, Next: 5, Twin: 3, Triangle: 4},         // 0  PC (repurposed AB)
+				{Origin: 1, Next: 0, Twin: NoneEdge, Triangle: 4},  // 1  BP
+				{Origin: 2, Next: 4, Twin: NoneEdge, Triangle: 5},  // 2  PA
+				{Origin: 3, Next: 2, Twin: 0, Triangle: 5},         // 3  CP (repurposed BA)
+				{Origin: 0, Next: 3, Twin: 9, Triangle: 5},         // 4  AC
+				{Origin: 3, Next: 1, Twin: 6, Triangle: 4},         // 5  CB
+				{Origin: 1, Next: 7, Twin: 5, Triangle: 2},         // 6  BC
+				{Origin: 3, Next: 8, Twin: NoneEdge, Triangle: 2},  // 7  CD
+				{Origin: 4, Next: 6, Twin: NoneEdge, Triangle: 2},  // 8  DB
+				{Origin: 3, Next: 10, Twin: 4, Triangle: 3},        // 9  CA
+				{Origin: 0, Next: 11, Twin: NoneEdge, Triangle: 3}, // 10 AE
+				{Origin: 5, Next: 9, Twin: NoneEdge, Triangle: 3},  // 11 EC
+			},
+			Triangles: []Triangle{
+				{Edge: 0, Tombstoned: true},
+				{Edge: 3, Tombstoned: true},
+				{Edge: 6, Tombstoned: false},
+				{Edge: 9, Tombstoned: false},
+				{Edge: 1, Tombstoned: false},
+				{Edge: 2, Tombstoned: false},
+			},
+			LastInsertedEdge: 1,
+		}
+	}
+
+	tests := []struct {
+		name         string
+		m            *Mesh
+		expectedMesh *Mesh
+		edge         EdgeID
+	}{
+		{"SingleFlip", makeEdgeFlippingMesh(Point{X: 2, Y: 4}, Point{X: 2, Y: 0}), makeFlippedMesh(Point{X: 2, Y: 4}, Point{X: 2, Y: 0}), 0},
+		{"DoubleFlipD", makeEdgeFlippingMesh(Point{X: 0.5, Y: 3}, Point{X: 2, Y: 0}), makeFlippedMesh(Point{X: 0.5, Y: 3}, Point{X: 2, Y: 0}), 0},
+		{"DoubleFlipE", makeEdgeFlippingMesh(Point{X: 2, Y: 4}, Point{X: 0.5, Y: 1}), makeFlippedMesh(Point{X: 2, Y: 4}, Point{X: 0.5, Y: 1}), 0},
+		{"TripleFlip", makeEdgeFlippingMesh(Point{X: 0.5, Y: 3}, Point{X: 0.5, Y: 1}), makeFlippedMesh(Point{X: 0.5, Y: 3}, Point{X: 0.5, Y: 1}), 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			flipEdge(tt.m, tt.edge)
+			assert(t, "mesh", tt.name, tt.m, tt.expectedMesh)
+		})
+	}
+}
+
+func TestLegaliseEdge(t *testing.T) {
+	makeMesh := func(D Point, E Point) *Mesh {
+		return &Mesh{
+			Points: []Point{
+				{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, D, E,
+			},
+			HalfEdges: []HalfEdge{
+				{Origin: 0, Next: 1, Twin: 3, Triangle: 0},         // 0  AB
+				{Origin: 1, Next: 2, Twin: NoneEdge, Triangle: 0},  // 1  BP
+				{Origin: 2, Next: 0, Twin: NoneEdge, Triangle: 0},  // 2  PA
+				{Origin: 1, Next: 4, Twin: 0, Triangle: 1},         // 3  BA
+				{Origin: 0, Next: 5, Twin: 9, Triangle: 1},         // 4  AC
+				{Origin: 3, Next: 3, Twin: 6, Triangle: 1},         // 5  CB
+				{Origin: 1, Next: 7, Twin: 5, Triangle: 2},         // 6  BC
+				{Origin: 3, Next: 8, Twin: NoneEdge, Triangle: 2},  // 7  CD
+				{Origin: 4, Next: 6, Twin: NoneEdge, Triangle: 2},  // 8  DB
+				{Origin: 3, Next: 10, Twin: 4, Triangle: 3},        // 9  CA
+				{Origin: 0, Next: 11, Twin: NoneEdge, Triangle: 3}, // 10 AE
+				{Origin: 5, Next: 9, Twin: NoneEdge, Triangle: 3},  // 11 EC
+			},
+			Triangles: []Triangle{
+				{Edge: 0, Tombstoned: false},
+				{Edge: 3, Tombstoned: false},
+				{Edge: 6, Tombstoned: false},
+				{Edge: 9, Tombstoned: false},
+			},
+			LastInsertedEdge: 1,
+		}
+	}
+
+	tests := []struct {
+		name         string
+		m            *Mesh
+		expectedMesh *Mesh
+	}{
+		{
+			"SingleFlip",
+			makeMesh(Point{X: 2, Y: 4}, Point{X: 2, Y: 0}),
+			&Mesh{
+				Points: []Point{
+					{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, {X: 2, Y: 4}, {X: 2, Y: 0},
+				},
+				HalfEdges: []HalfEdge{
+					{Origin: 2, Next: 5, Twin: 3, Triangle: 4},
+					{Origin: 1, Next: 0, Twin: NoneEdge, Triangle: 4},
+					{Origin: 2, Next: 4, Twin: NoneEdge, Triangle: 5},
+					{Origin: 3, Next: 2, Twin: 0, Triangle: 5},
+					{Origin: 0, Next: 3, Twin: 9, Triangle: 5},
+					{Origin: 3, Next: 1, Twin: 6, Triangle: 4},
+					{Origin: 1, Next: 7, Twin: 5, Triangle: 2},
+					{Origin: 3, Next: 8, Twin: NoneEdge, Triangle: 2},
+					{Origin: 4, Next: 6, Twin: NoneEdge, Triangle: 2},
+					{Origin: 3, Next: 10, Twin: 4, Triangle: 3},
+					{Origin: 0, Next: 11, Twin: NoneEdge, Triangle: 3},
+					{Origin: 5, Next: 9, Twin: NoneEdge, Triangle: 3},
+				},
+				Triangles: []Triangle{
+					{Edge: 0, Tombstoned: true},
+					{Edge: 3, Tombstoned: true},
+					{Edge: 6, Tombstoned: false},
+					{Edge: 9, Tombstoned: false},
+					{Edge: 1, Tombstoned: false},
+					{Edge: 2, Tombstoned: false},
+				},
+				LastInsertedEdge: 1,
+			},
+		},
+		{
+			"DoubleFlipD",
+			makeMesh(Point{X: 0.5, Y: 3}, Point{X: 2, Y: 0}),
+			&Mesh{
+				Points: []Point{
+					{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, {X: 0.5, Y: 3}, {X: 2, Y: 0},
+				},
+				HalfEdges: []HalfEdge{
+					{Origin: 2, Next: 7, Twin: 3, Triangle: 7},
+					{Origin: 1, Next: 5, Twin: NoneEdge, Triangle: 6},
+					{Origin: 2, Next: 4, Twin: NoneEdge, Triangle: 5},
+					{Origin: 3, Next: 2, Twin: 0, Triangle: 5},
+					{Origin: 0, Next: 3, Twin: 9, Triangle: 5},
+					{Origin: 2, Next: 8, Twin: 6, Triangle: 6},
+					{Origin: 4, Next: 0, Twin: 5, Triangle: 7},
+					{Origin: 3, Next: 6, Twin: NoneEdge, Triangle: 7},
+					{Origin: 4, Next: 1, Twin: NoneEdge, Triangle: 6},
+					{Origin: 3, Next: 10, Twin: 4, Triangle: 3},
+					{Origin: 0, Next: 11, Twin: NoneEdge, Triangle: 3},
+					{Origin: 5, Next: 9, Twin: NoneEdge, Triangle: 3},
+				},
+				Triangles: []Triangle{
+					{Edge: 0, Tombstoned: true},
+					{Edge: 3, Tombstoned: true},
+					{Edge: 6, Tombstoned: true},
+					{Edge: 9, Tombstoned: false},
+					{Edge: 1, Tombstoned: true},
+					{Edge: 2, Tombstoned: false},
+					{Edge: 1, Tombstoned: false},
+					{Edge: 0, Tombstoned: false},
+				},
+				LastInsertedEdge: 1,
+			},
+		},
+		{
+			"DoubleFlipE",
+			makeMesh(Point{X: 2, Y: 4}, Point{X: 0.5, Y: 1}),
+			&Mesh{
+				Points: []Point{
+					{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, {X: 2, Y: 4}, {X: 0.5, Y: 1},
+				},
+				HalfEdges: []HalfEdge{
+					{Origin: 2, Next: 5, Twin: 3, Triangle: 4},
+					{Origin: 1, Next: 0, Twin: NoneEdge, Triangle: 4},
+					{Origin: 2, Next: 10, Twin: NoneEdge, Triangle: 7},
+					{Origin: 3, Next: 4, Twin: 0, Triangle: 6},
+					{Origin: 2, Next: 11, Twin: 9, Triangle: 6},
+					{Origin: 3, Next: 1, Twin: 6, Triangle: 4},
+					{Origin: 1, Next: 7, Twin: 5, Triangle: 2},
+					{Origin: 3, Next: 8, Twin: NoneEdge, Triangle: 2},
+					{Origin: 4, Next: 6, Twin: NoneEdge, Triangle: 2},
+					{Origin: 5, Next: 2, Twin: 4, Triangle: 7},
+					{Origin: 0, Next: 9, Twin: NoneEdge, Triangle: 7},
+					{Origin: 5, Next: 3, Twin: NoneEdge, Triangle: 6},
+				},
+				Triangles: []Triangle{
+					{Edge: 0, Tombstoned: true},
+					{Edge: 3, Tombstoned: true},
+					{Edge: 6, Tombstoned: false},
+					{Edge: 9, Tombstoned: true},
+					{Edge: 1, Tombstoned: false},
+					{Edge: 2, Tombstoned: true},
+					{Edge: 3, Tombstoned: false},
+					{Edge: 2, Tombstoned: false},
+				},
+				LastInsertedEdge: 1,
+			},
+		},
+		{
+			"TripleFlip",
+			makeMesh(Point{X: 0.5, Y: 3}, Point{X: 0.5, Y: 1}),
+			&Mesh{
+				Points: []Point{
+					{X: 0, Y: 0}, {X: 0, Y: 4}, {X: -0.1, Y: 2}, {X: 0.1, Y: 2}, {X: 0.5, Y: 3}, {X: 0.5, Y: 1},
+				},
+				HalfEdges: []HalfEdge{
+					{Origin: 2, Next: 7, Twin: 3, Triangle: 9},
+					{Origin: 1, Next: 5, Twin: NoneEdge, Triangle: 8},
+					{Origin: 2, Next: 10, Twin: NoneEdge, Triangle: 7},
+					{Origin: 3, Next: 4, Twin: 0, Triangle: 6},
+					{Origin: 2, Next: 11, Twin: 9, Triangle: 6},
+					{Origin: 2, Next: 8, Twin: 6, Triangle: 8},
+					{Origin: 4, Next: 0, Twin: 5, Triangle: 9},
+					{Origin: 3, Next: 6, Twin: NoneEdge, Triangle: 9},
+					{Origin: 4, Next: 1, Twin: NoneEdge, Triangle: 8},
+					{Origin: 5, Next: 2, Twin: 4, Triangle: 7},
+					{Origin: 0, Next: 9, Twin: NoneEdge, Triangle: 7},
+					{Origin: 5, Next: 3, Twin: NoneEdge, Triangle: 6},
+				},
+				Triangles: []Triangle{
+					{Edge: 0, Tombstoned: true},
+					{Edge: 3, Tombstoned: true},
+					{Edge: 6, Tombstoned: true},
+					{Edge: 9, Tombstoned: true},
+					{Edge: 1, Tombstoned: true},
+					{Edge: 2, Tombstoned: true},
+					{Edge: 3, Tombstoned: false},
+					{Edge: 2, Tombstoned: false},
+					{Edge: 1, Tombstoned: false},
+					{Edge: 0, Tombstoned: false},
+				},
+				LastInsertedEdge: 1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			legaliseEdge(tt.m, 1, 2) // edge=1 (BP), vertex=2 (P)
+			assert(t, "mesh", tt.name, tt.m, tt.expectedMesh)
+		})
+	}
+}
