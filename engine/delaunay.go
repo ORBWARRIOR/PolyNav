@@ -66,18 +66,17 @@ func NewMeshWithSuperTriangle(numOfPoints int) (*Mesh, error) {
 
 // MeshStats computes summary statistics from a Mesh.
 func MeshStats(m *Mesh) Stats {
-	// Dummy — count from the data structure.
-	edgeCount := len(m.HalfEdges) / 2
+	edgeCount := len(m.HalfEdges)
 	var hullEdges int
-	for i := 0; i < edgeCount; i++ {
-		if m.HalfEdges[i].Twin == NoneEdge {
+	for i := range edgeCount {
+		if m.HalfEdges[i].Triangle == NoneTriangle {
 			hullEdges++
 		}
 	}
 	return Stats{
 		PointCount:    len(m.Points),
 		TriangleCount: len(m.Triangles),
-		EdgeCount:     edgeCount,
+		EdgeCount:     edgeCount / 2,
 		HullEdges:     hullEdges,
 	}
 }
