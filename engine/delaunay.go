@@ -23,7 +23,6 @@ func Triangulate(points []Point) (*Mesh, error) {
 		return nil, err
 	}
 
-	mesh := NewMeshWithSuperTriangle(numOfPoints)
 	for i := range numOfPoints {
 		InsertPoint(mesh, uniq[i])
 	}
@@ -76,7 +75,7 @@ func MeshStats(m *Mesh) Stats {
 		}
 	}
 	return Stats{
-		PointCount:    len(m.Points) - 3,
+		PointCount:    len(m.Points),
 		TriangleCount: len(m.Triangles),
 		EdgeCount:     edgeCount / 2,
 		HullEdges:     hullEdges,

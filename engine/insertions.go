@@ -146,7 +146,7 @@ func splitEdge(m *Mesh, AB EdgeID, p VertexID) [4]EdgeID {
 	if tID := m.HalfEdges[AB].Triangle; tID != NoneTriangle {
 		m.Triangles[tID].Tombstoned = true
 	}
-	if tID := m.HalfEdges[AB].Triangle; tID != NoneTriangle {
+	if tID := m.HalfEdges[BA].Triangle; tID != NoneTriangle {
 		m.Triangles[tID].Tombstoned = true
 	}
 

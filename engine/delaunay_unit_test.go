@@ -219,7 +219,7 @@ func TestOrient(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			area := Orient(tt.A, tt.B, tt.C)
+			area := orient(tt.A, tt.B, tt.C)
 			assert(t, "area", tt.name, area, tt.expectedArea)
 		})
 	}
@@ -622,7 +622,7 @@ func TestWalkToPoint(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		resultEdgeID, ok := WalkToPoint(tt.m, tt.pt)
+		resultEdgeID, ok := walkToPoint(tt.m, tt.pt)
 
 		assert(t, "success", tt.name, ok, tt.expectedSuccess)
 		if tt.expectedSuccess {
@@ -1244,7 +1244,7 @@ func TestInsertPoint(t *testing.T) {
 
 	for i, p := range points {
 		t.Run(fmt.Sprintf("Insert_%d_%v", i, p), func(t *testing.T) {
-			InsertPoint(m, p, VertexID(i+3))
+			InsertPoint(m, p)
 			assert(t, "mesh", fmt.Sprintf("after inserting %v", p), m, expectedMeshes[i])
 		})
 	}
