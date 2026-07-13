@@ -18,6 +18,52 @@ func assert(t *testing.T, variableTested, testName string, result, expected any)
 	return true
 }
 
+// Creates a mesh consisting of the super triangle
+func newSuperTriangle() *Mesh {
+	return &Mesh{
+		Points: []Point{{-100, -100}, {100, -100}, {0, 100}},
+		HalfEdges: []HalfEdge{
+			{Origin: 0, Twin: 3, Next: 1, Triangle: 0},
+			{Origin: 1, Twin: 4, Next: 2, Triangle: 0},
+			{Origin: 2, Twin: 5, Next: 0, Triangle: 0},
+			{Origin: 1, Twin: 0, Next: 5, Triangle: NoneTriangle},
+			{Origin: 2, Twin: 1, Next: 3, Triangle: NoneTriangle},
+			{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle},
+		},
+		Triangles:        []Triangle{{Edge: 0, Tombstoned: false}},
+		LastInsertedEdge: EdgeID(2),
+	}
+}
+
+// Creates a mesh consisting of the super triangle and a point at (0, 0)
+// Looks like a fan with 3 blades
+func newFan3() *Mesh {
+	return &Mesh{
+		Points: []Point{{-100, -100}, {100, -100}, {0, 100}, {0, 0}},
+		HalfEdges: []HalfEdge{
+			{Origin: 0, Twin: 3, Next: 6, Triangle: 1},
+			{Origin: 1, Twin: 4, Next: 8, Triangle: 2},
+			{Origin: 2, Twin: 5, Next: 10, Triangle: 3},
+			{Origin: 1, Twin: 0, Next: 5, Triangle: NoneTriangle},
+			{Origin: 2, Twin: 1, Next: 3, Triangle: NoneTriangle},
+			{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle},
+			{Origin: 1, Twin: 7, Next: 11, Triangle: 1},
+			{Origin: 3, Twin: 6, Next: 1, Triangle: 2},
+			{Origin: 2, Twin: 9, Next: 7, Triangle: 2},
+			{Origin: 3, Twin: 8, Next: 2, Triangle: 3},
+			{Origin: 0, Twin: 11, Next: 9, Triangle: 3},
+			{Origin: 3, Twin: 10, Next: 0, Triangle: 1},
+		},
+		Triangles: []Triangle{
+			{Edge: 0, Tombstoned: true},
+			{Edge: 0, Tombstoned: false},
+			{Edge: 1, Tombstoned: false},
+			{Edge: 2, Tombstoned: false},
+		},
+		LastInsertedEdge: EdgeID(2),
+	}
+}
+
 func TestNormalisePoints(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -284,9 +330,11 @@ func TestMeshAddPoint(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		resultPID := tt.mesh.addPoint(tt.point)
-		assert(t, "mesh", tt.name, tt.mesh, tt.expectedMesh)
-		assert(t, "resultPID", tt.name, resultPID, tt.expectedPID)
+		t.Run(tt.name, func(t *testing.T) {
+			resultPID := tt.mesh.addPoint(tt.point)
+			assert(t, "mesh", tt.name, tt.mesh, tt.expectedMesh)
+			assert(t, "resultPID", tt.name, resultPID, tt.expectedPID)
+		})
 	}
 }
 func TestMeshAddEdge(t *testing.T) {
@@ -316,10 +364,12 @@ func TestMeshAddEdge(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		AB, BA := tt.mesh.addEdgePair(tt.a, tt.b)
-		assert(t, "mesh", tt.name, tt.mesh, tt.expectedMesh)
-		assert(t, "AB", tt.name, AB, tt.expectedEdgeID)
-		assert(t, "BA", tt.name, BA, tt.expectedTwinEdgeID)
+		t.Run(tt.name, func(t *testing.T) {
+			AB, BA := tt.mesh.addEdgePair(tt.a, tt.b)
+			assert(t, "mesh", tt.name, tt.mesh, tt.expectedMesh)
+			assert(t, "AB", tt.name, AB, tt.expectedEdgeID)
+			assert(t, "BA", tt.name, BA, tt.expectedTwinEdgeID)
+		})
 	}
 }
 
@@ -332,21 +382,7 @@ func TestNewMesh(t *testing.T) {
 	}{
 		{"OnePoint", 1, nil, true},
 		{"TwoPoint", 2, nil, true},
-		{"ThreePoint", 3, &Mesh{
-			Points: []Point{
-				{X: -100, Y: -100},
-				{X: 100, Y: -100},
-				{X: 0, Y: 100}},
-			HalfEdges: []HalfEdge{
-				{Origin: 0, Twin: 3, Next: 1, Triangle: 0},
-				{Origin: 1, Twin: 4, Next: 2, Triangle: 0},
-				{Origin: 2, Twin: 5, Next: 0, Triangle: 0},
-				{Origin: 1, Twin: 0, Next: 5, Triangle: NoneTriangle},
-				{Origin: 2, Twin: 1, Next: 3, Triangle: NoneTriangle},
-				{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle}},
-			Triangles:        []Triangle{{Edge: EdgeID(0), Tombstoned: false}},
-			LastInsertedEdge: EdgeID(2),
-		}, false},
+		{"ThreePoint", 3, newSuperTriangle(), false},
 	}
 
 	for _, tt := range tests {
@@ -360,53 +396,19 @@ func TestNewMesh(t *testing.T) {
 
 func TestCompact(t *testing.T) {
 	superTri := func(tombstoned ...TriangleID) *Mesh {
-		tombstone := make([]bool, 3)
+		m := newSuperTriangle()
 		for _, id := range tombstoned {
-			tombstone[id] = true
+			m.Triangles[id].Tombstoned = true
 		}
-		return &Mesh{
-			Points: []Point{{-100, -100}, {100, -100}, {0, 100}},
-			HalfEdges: []HalfEdge{
-				{Origin: 0, Twin: 3, Next: 1, Triangle: 0},
-				{Origin: 1, Twin: 4, Next: 2, Triangle: 0},
-				{Origin: 2, Twin: 5, Next: 0, Triangle: 0},
-				{Origin: 1, Twin: 0, Next: 5, Triangle: NoneTriangle},
-				{Origin: 2, Twin: 1, Next: 3, Triangle: NoneTriangle},
-				{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle},
-			},
-			Triangles: []Triangle{
-				{Edge: 0, Tombstoned: tombstone[0]},
-			},
-		}
+		return m
 	}
 
 	fan3 := func(tombstoned ...TriangleID) *Mesh {
-		tombstone := make([]bool, 3)
+		m := newFan3()
 		for _, id := range tombstoned {
-			tombstone[id] = true
+			m.Triangles[id].Tombstoned = true
 		}
-		return &Mesh{
-			Points: []Point{{-100, -100}, {100, -100}, {0, 100}, {0, 0}},
-			HalfEdges: []HalfEdge{
-				{Origin: 0, Twin: 9, Next: 1, Triangle: 0},
-				{Origin: 1, Twin: 5, Next: 2, Triangle: 0},
-				{Origin: 3, Twin: 7, Next: 0, Triangle: 0},
-				{Origin: 1, Twin: 10, Next: 4, Triangle: 1},
-				{Origin: 2, Twin: 8, Next: 5, Triangle: 1},
-				{Origin: 3, Twin: 1, Next: 3, Triangle: 1},
-				{Origin: 2, Twin: 11, Next: 7, Triangle: 2},
-				{Origin: 0, Twin: 2, Next: 8, Triangle: 2},
-				{Origin: 3, Twin: 4, Next: 6, Triangle: 2},
-				{Origin: 1, Twin: 0, Next: 11, Triangle: NoneTriangle},
-				{Origin: 2, Twin: 3, Next: 9, Triangle: NoneTriangle},
-				{Origin: 0, Twin: 6, Next: 10, Triangle: NoneTriangle},
-			},
-			Triangles: []Triangle{
-				{Edge: 0, Tombstoned: tombstone[0]},
-				{Edge: 3, Tombstoned: tombstone[1]},
-				{Edge: 6, Tombstoned: tombstone[2]},
-			},
-		}
+		return m
 	}
 
 	tests := []struct {
@@ -438,29 +440,29 @@ func TestCompact(t *testing.T) {
 		},
 		{
 			name: "OneTombstonedInFan",
-			mesh: fan3(2),
+			mesh: fan3(1),
 			expectedMesh: &Mesh{
 				Points: []Point{{-100, -100}, {100, -100}, {0, 100}, {0, 0}},
 				HalfEdges: []HalfEdge{
-					{Origin: 0, Twin: 6, Next: 1, Triangle: 0},
-					{Origin: 1, Twin: 5, Next: 2, Triangle: 0},
+					{Origin: 1, Twin: 3, Next: 6, Triangle: 0},
+					{Origin: 2, Twin: 4, Next: 8, Triangle: 1},
+					{Origin: 1, Twin: NoneEdge, Next: 4, Triangle: NoneTriangle},
+					{Origin: 2, Twin: 0, Next: 2, Triangle: NoneTriangle},
+					{Origin: 0, Twin: 1, Next: 3, Triangle: NoneTriangle},
 					{Origin: 3, Twin: NoneEdge, Next: 0, Triangle: 0},
-					{Origin: 1, Twin: 7, Next: 4, Triangle: 1},
-					{Origin: 2, Twin: NoneEdge, Next: 5, Triangle: 1},
-					{Origin: 3, Twin: 1, Next: 3, Triangle: 1},
-					{Origin: 1, Twin: 0, Next: 8, Triangle: NoneTriangle},
-					{Origin: 2, Twin: 3, Next: 6, Triangle: NoneTriangle},
-					{Origin: 0, Twin: NoneEdge, Next: 7, Triangle: NoneTriangle},
+					{Origin: 2, Twin: 7, Next: 5, Triangle: 0},
+					{Origin: 3, Twin: 6, Next: 1, Triangle: 1},
+					{Origin: 0, Twin: NoneEdge, Next: 7, Triangle: 1},
 				},
 				Triangles: []Triangle{
 					{Edge: 0, Tombstoned: false},
-					{Edge: 3, Tombstoned: false},
+					{Edge: 1, Tombstoned: false},
 				},
 			},
 		},
 		{
 			name: "AllTombstonedInFan",
-			mesh: fan3(0, 1, 2),
+			mesh: fan3(1, 2, 3),
 			expectedMesh: &Mesh{
 				Points: []Point{{-100, -100}, {100, -100}, {0, 100}, {0, 0}},
 				HalfEdges: []HalfEdge{
@@ -480,4 +482,112 @@ func TestCompact(t *testing.T) {
 			assert(t, "points", tt.name, tt.mesh.Points, tt.expectedMesh.Points)
 		})
 	}
+}
+
+func TestMeshInherentProperties(t *testing.T) {
+	m := newSuperTriangle()
+
+	a := VertexID(0)
+	b := VertexID(1)
+	c := VertexID(2)
+	AB := EdgeID(0)
+	BC := EdgeID(1)
+	CA := EdgeID(2)
+	triangleID := TriangleID(0)
+
+	resultEdge := m.HalfEdges[m.HalfEdges[m.HalfEdges[AB].Next].Next].Next
+	resultTwinTwin := m.HalfEdges[m.HalfEdges[AB].Twin].Twin
+	AB_Origin := m.HalfEdges[AB].Origin
+	BC_Origin := m.HalfEdges[BC].Origin
+	CA_Origin := m.HalfEdges[CA].Origin
+	AB_Triangle := m.HalfEdges[AB].Triangle
+	BC_Triangle := m.HalfEdges[BC].Triangle
+	CA_Triangle := m.HalfEdges[CA].Triangle
+	resultTriangleEdge := m.Triangles[triangleID].Edge
+	assert(t, "edge cycle", "InherentEdgeProperty", resultEdge, AB)
+	assert(t, "twin's twin", "InherentEdgeProperty", resultTwinTwin, AB)
+	assert(t, "edge origin", "InherentEdgeProperty", AB_Origin, a)
+	assert(t, "edge origin", "InherentEdgeProperty", BC_Origin, b)
+	assert(t, "edge origin", "InherentEdgeProperty", CA_Origin, c)
+	assert(t, "edge's triangle", "InherentEdgeProperty", AB_Triangle, triangleID)
+	assert(t, "edge's triangle", "InherentEdgeProperty", BC_Triangle, triangleID)
+	assert(t, "edge's triangle", "InherentEdgeProperty", CA_Triangle, triangleID)
+	assert(t, "triangle's edge", "InherentTriangleProperty", resultTriangleEdge, AB)
+}
+
+func TestGetEdgeOppositeP(t *testing.T) {
+	tests := []struct {
+		name         string
+		edge         EdgeID
+		P            VertexID
+		expectedEdge EdgeID
+		m            *Mesh
+	}{
+		{"OneJump", 0, 0, 1, newSuperTriangle()},
+		{"ZeroJump", 1, 0, 1, newSuperTriangle()},
+		{"TwoJump", 2, 0, 1, newSuperTriangle()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resultEdge := getEdgeOppositeP(tt.m, tt.edge, tt.P)
+			assert(t, "edge", tt.name, resultEdge, tt.expectedEdge)
+		})
+	}
+}
+
+func TestSplitTriangle(t *testing.T) {
+	testName := "SplitTriangle"
+	m := newSuperTriangle()
+	expectedMesh := newFan3()
+	expectedEdgeIDs := [3]EdgeID{6, 8, 10}
+
+	m.addPoint(Point{X: 0, Y: 0})
+	resultEdgeIDs := splitTriangle(m, 0, 3)
+	assert(t, "mesh", testName, m, expectedMesh)
+	assert(t, "edgeIDs", testName, resultEdgeIDs, expectedEdgeIDs)
+}
+
+func TestSplitEdge(t *testing.T) {
+	m := &Mesh{
+		Points: []Point{{X: 0, Y: 1}, {X: 1, Y: 0}, {X: 1, Y: 1}, {X: 0, Y: 0}, {X: 0.5, Y: 0.5}},
+		HalfEdges: []HalfEdge{
+			{Origin: 0, Next: 1, Twin: 3, Triangle: 0},        // AB
+			{Origin: 1, Next: 2, Twin: NoneEdge, Triangle: 0}, // BC
+			{Origin: 2, Next: 0, Twin: NoneEdge, Triangle: 0}, // CA
+			{Origin: 1, Next: 4, Twin: 0, Triangle: 1},        // BA
+			{Origin: 0, Next: 5, Twin: NoneEdge, Triangle: 1}, // AD
+			{Origin: 3, Next: 3, Twin: NoneEdge, Triangle: 1}, // DB
+		},
+		Triangles: []Triangle{
+			{Edge: 0, Tombstoned: false}, {Edge: 3, Tombstoned: false},
+		},
+		LastInsertedEdge: 5,
+	}
+	expectedMesh := &Mesh{
+		Points: []Point{{X: 0, Y: 1}, {X: 1, Y: 0}, {X: 1, Y: 1}, {X: 0, Y: 0}, {X: 0.5, Y: 0.5}},
+		HalfEdges: []HalfEdge{
+			{Origin: 0, Next: 8, Twin: 3, Triangle: 2},         // 0  AB -> AP
+			{Origin: 1, Next: 9, Twin: NoneEdge, Triangle: 3},  // 1  BC
+			{Origin: 2, Next: 0, Twin: NoneEdge, Triangle: 2},  // 2  CA
+			{Origin: 4, Next: 4, Twin: 0, Triangle: 4},         // 3  BA -> PA
+			{Origin: 0, Next: 10, Twin: NoneEdge, Triangle: 4}, // 4  AD
+			{Origin: 3, Next: 7, Twin: NoneEdge, Triangle: 5},  // 5  DB
+			{Origin: 4, Next: 1, Twin: 7, Triangle: 3},         // 6  PB
+			{Origin: 1, Next: 11, Twin: 6, Triangle: 5},        // 7  BP
+			{Origin: 4, Next: 2, Twin: 9, Triangle: 2},         // 8  PC
+			{Origin: 2, Next: 6, Twin: 8, Triangle: 3},         // 9  CP
+			{Origin: 3, Next: 3, Twin: 11, Triangle: 4},        // 10 DP
+			{Origin: 4, Next: 5, Twin: 10, Triangle: 5},        // 11 PD
+		},
+		Triangles: []Triangle{
+			{Edge: 0, Tombstoned: true}, {Edge: 3, Tombstoned: true},
+			{Edge: 0, Tombstoned: false}, {Edge: 1, Tombstoned: false},
+			{Edge: 3, Tombstoned: false}, {Edge: 5, Tombstoned: false},
+		},
+		LastInsertedEdge: 5,
+	}
+
+	splitEdge(m, 0, 4)
+	assert(t, "mesh", "SplitEdge", m, expectedMesh)
 }
