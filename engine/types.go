@@ -8,10 +8,6 @@ type Point struct {
 	X, Y float64
 }
 
-func (p Point) Sub(q Point) Point {
-	return Point{X: p.X - q.X, Y: p.Y - q.Y}
-}
-
 type VertexID int32
 type EdgeID int32
 type TriangleID int32

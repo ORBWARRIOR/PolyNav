@@ -18,16 +18,23 @@ func Triangulate(points []Point) (*Mesh, error) {
 		return nil, fmt.Errorf("delaunay: only %d unique points after dedup, need 3", numOfPoints)
 	}
 
-	mesh := NewMeshWithSuperTriangle(numOfPoints)
+	mesh, err := NewMeshWithSuperTriangle(numOfPoints)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range numOfPoints {
 		InsertPoint(mesh, uniq[i], VertexID(i+3))
 	}
 	compact(mesh)
-	mesh.Points = denormalise(mesh.Points, scale, minX, minY)
+	mesh.Points = denormalisePoints(mesh.Points, scale, minX, minY)
 	return mesh, nil
 }
 
-func NewMeshWithSuperTriangle(numOfPoints int) *Mesh {
+func NewMeshWithSuperTriangle(numOfPoints int) (*Mesh, error) {
+	if numOfPoints < 3 {
+		return nil, fmt.Errorf("delaunay: received %d points after dedup, need 3", numOfPoints)
+	}
 	m := &Mesh{
 		Points:    make([]Point, 0, numOfPoints+3),    // Points + Super Triangle
 		HalfEdges: make([]HalfEdge, 0, numOfPoints*6), // TODO:
@@ -54,30 +61,29 @@ func NewMeshWithSuperTriangle(numOfPoints int) *Mesh {
 	m.HalfEdges = append(m.HalfEdges, HalfEdge{Origin: 0, Twin: 2, Next: 4, Triangle: NoneTriangle}) // Edge 5
 
 	m.LastInsertedEdge = EdgeID(2) // EdgeID of the last internal edge
-	return m
+	return m, nil
 }
 
 // MeshStats computes summary statistics from a Mesh.
 func MeshStats(m *Mesh) Stats {
-	// Dummy — count from the data structure.
-	edgeCount := len(m.HalfEdges) / 2
+	edgeCount := len(m.HalfEdges)
 	var hullEdges int
-	for i := 0; i < edgeCount; i++ {
-		if m.HalfEdges[i].Twin == NoneEdge {
+	for i := range edgeCount {
+		if m.HalfEdges[i].Triangle == NoneTriangle {
 			hullEdges++
 		}
 	}
 	return Stats{
 		PointCount:    len(m.Points),
 		TriangleCount: len(m.Triangles),
-		EdgeCount:     edgeCount,
+		EdgeCount:     edgeCount / 2,
 		HullEdges:     hullEdges,
 	}
 }
 
-func normalisePoints(points []Point) ([]Point, float64, float64, float64) {
+func normalisePoints(points []Point) (normalised []Point, scale, minX, minY float64) {
 
-	minX, minY := math.MaxFloat64, math.MaxFloat64
+	minX, minY = math.MaxFloat64, math.MaxFloat64
 	maxX, maxY := -math.MaxFloat64, -math.MaxFloat64
 
 	for _, pt := range points {
@@ -95,12 +101,12 @@ func normalisePoints(points []Point) ([]Point, float64, float64, float64) {
 		}
 	}
 
-	scale := math.Max(maxX-minX, maxY-minY)
+	scale = math.Max(maxX-minX, maxY-minY)
 	if scale <= Epsilon {
 		scale = 1.0
 	}
 
-	normalised := make([]Point, len(points))
+	normalised = make([]Point, len(points))
 	for i, pt := range points {
 		normalised[i] = Point{
 			X: (pt.X - minX) / scale,
@@ -132,7 +138,7 @@ func isCoincident(p1, p2 Point) bool {
 	return math.Abs(p1.X-p2.X) < Epsilon && math.Abs(p1.Y-p2.Y) < Epsilon
 }
 
-func denormalise(points []Point, scale, minX, minY float64) []Point {
+func denormalisePoints(points []Point, scale, minX, minY float64) []Point {
 	denormalised := make([]Point, len(points))
 	for i, pt := range points {
 		denormalised[i] = Point{
@@ -149,7 +155,7 @@ func compact(m *Mesh) {
 	edgesMap := make(map[EdgeID]EdgeID)
 	for oldIdx, ohe := range m.HalfEdges {
 		tID := ohe.Triangle
-		if m.Triangles[tID].Tombstoned {
+		if tID != NoneTriangle && m.Triangles[tID].Tombstoned {
 			continue
 		}
 		newIdx := EdgeID(len(newEdges))

@@ -18,9 +18,12 @@ build-server: ## Headless HTTP server build
 bindings: ## Regenerate TS bindings from Go services
 	$(WAILS) generate bindings -clean=true -ts
 
-test: ## Run unit tests (engine + root)
-	go test ./... -count=1
-	go vet ./...
+test-delaunay: ## Run delaunay unit tests
+	go test ./engine -v -coverpkg=./engine
+	go vet ./engine
+
+benchmark-delaunay:
+	go test ./engine -v -bench=. -benchtime=10s -benchmem -run=^#
 
 test-engine: ## Engine package tests only
 	go test ./engine/... -v -count=1
