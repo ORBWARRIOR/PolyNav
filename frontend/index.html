@@ -2,43 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/wails.png"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <link rel="stylesheet" href="/style.css"/>
     <title>PolyNav</title>
 </head>
+
 <body>
 
-<!-- Background layer -->
+<div id="sidebar" class="sidebar">
+    <div id="menu-btns">
+        <button class="btn" id="add-obstacle">Add Obstacle</button>
+        <button class="btn" id="delete-obstacle">Delete Obstacle</button>
+        <button class="btn" id="add-start">Add Start</button>
+        <button class="btn" id="delete-start">Delete Start</button>
+        <button class="btn" id="add-end">Add End</button>
+        <button class="btn" id="delete-end">Delete End</button>
+        <button class="btn" id="triangulate">Triangulate</button>
+    </div>
+</div>
+
+    <button id="sidebar-toggle" aria-label="Toggle navigation sidebar">→</button>
+
+
 <div class="bg" aria-hidden="true"></div>
 
-<!-- Title bar -->
-<header class="appbar">
-    <span class="appbar-title">PolyNav</span>
-    <span class="appbar-meta">
-        <span id="version">v3</span>
-        <span class="appbar-sep" aria-hidden="true"></span>
-        <span id="time" class="time-label">—</span>
-    </span>
-</header>
 
-<!-- Main canvas viewport -->
-<main class="viewport">
-    <canvas id="mesh"></canvas>
-</main>
-
-<!-- Bottom toolbar -->
-<div class="toolbar">
-    <div class="toolbar-group">
-        <select id="preset" class="toolbar-select">
-            <option value="random-6">Random 6</option>
-            <option value="random-12" selected>Random 12</option>
-            <option value="random-24">Random 24</option>
-            <option value="circle-12">Circle</option>
-            <option value="grid-16">Grid</option>
-        </select>
-        <button id="generate" class="btn">Triangulate</button>
-    </div>
-    <div id="stats" class="toolbar-stats"></div>
+<div id="canvas-container">
+    <canvas id="canvas"></canvas>
 </div>
 
 <script type="module" src="/src/main.js"></script>
