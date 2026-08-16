@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/ORBWARRIOR/PolyNav/engine"
 )
 
@@ -9,12 +11,11 @@ import (
 // auto-generated bindings (run `make bindings` after adding methods).
 type EngineService struct{}
 
-func NewEngineService() *EngineService {
-	return &EngineService{}
+func (g *EngineService) Log(msg string) {
+	fmt.Println("Frontend sent message:", msg)
 }
 
 // Triangulate runs Delaunay triangulation and returns a serialisable result.
-// The frontend receives triangles as flat index arrays ready for WebGL / Canvas.
 func (s *EngineService) Triangulate(points []engine.Point) (*engine.Mesh, error) {
 	return engine.Triangulate(points)
 }

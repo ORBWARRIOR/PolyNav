@@ -7,7 +7,7 @@ export enum EdgeID {
      */
     $zero = 0,
 
-    None = -1,
+    NoneEdge = -1,
 };
 
 /**
@@ -58,6 +58,11 @@ export interface Mesh {
      * Flat array storing all triangles
      */
     "Triangles": Triangle[] | null;
+
+    /**
+     * The most recently inserted edge, or None
+     */
+    "LastInsertedEdge": EdgeID;
 }
 
 /**
@@ -70,18 +75,33 @@ export interface Point {
 
 /**
  * Triangle references three points by their index in a point slice
- * Circumcircle values are cached
  */
 export interface Triangle {
     /**
      * One of the half-edges bounding this triangle
      */
     "Edge": EdgeID;
-    "CircumX": number;
-    "CircumY": number;
-    "CircumRsqrd": number;
+
+    /**
+     * Marks this triangle as deleted
+     */
+    "Tombstoned": boolean;
 }
 
-export type TriangleID = number;
+export enum TriangleID {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = 0,
 
-export type VertexID = number;
+    NoneTriangle = -1,
+};
+
+export enum VertexID {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = 0,
+
+    NoneVertex = -1,
+};

@@ -38,8 +38,7 @@ func main() {
 		Name:        "PolyNav",
 		Description: "Path planning and Delaunay triangulation visualiser",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
-			application.NewService(NewEngineService()),
+			application.NewService(&EngineService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -54,7 +53,7 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Window 1",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1000,
@@ -67,6 +66,7 @@ func main() {
 		BackgroundColour: application.NewRGB(6, 7, 15),
 		URL:              "/",
 	})
+	window.SetResizable(true)
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.
