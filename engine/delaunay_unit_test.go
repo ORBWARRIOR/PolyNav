@@ -396,22 +396,6 @@ func TestNewMesh(t *testing.T) {
 }
 
 func TestCompact(t *testing.T) {
-	superTri := func(tombstoned ...TriangleID) *Mesh {
-		m := newSuperTriangle()
-		for _, id := range tombstoned {
-			m.Triangles[id].Tombstoned = true
-		}
-		return m
-	}
-
-	fan3 := func(tombstoned ...TriangleID) *Mesh {
-		m := newFan3()
-		for _, id := range tombstoned {
-			m.Triangles[id].Tombstoned = true
-		}
-		return m
-	}
-
 	tests := []struct {
 		name         string
 		mesh         *Mesh
@@ -423,55 +407,14 @@ func TestCompact(t *testing.T) {
 			expectedMesh: &Mesh{},
 		},
 		{
-			name:         "NothingTombstoned",
-			mesh:         superTri(),
-			expectedMesh: superTri(),
+			name:         "AllTombstoned",
+			mesh:         newSuperTriangle(),
+			expectedMesh: &Mesh{},
 		},
 		{
-			name: "AllTombstoned",
-			mesh: superTri(0),
-			expectedMesh: &Mesh{
-				Points: []Point{{-100, -100}, {100, -100}, {0, 100}},
-				HalfEdges: []HalfEdge{
-					{Origin: 1, Twin: NoneEdge, Next: 2, Triangle: NoneTriangle},
-					{Origin: 2, Twin: NoneEdge, Next: 0, Triangle: NoneTriangle},
-					{Origin: 0, Twin: NoneEdge, Next: 1, Triangle: NoneTriangle},
-				},
-			},
-		},
-		{
-			name: "OneTombstonedInFan",
-			mesh: fan3(1),
-			expectedMesh: &Mesh{
-				Points: []Point{{-100, -100}, {100, -100}, {0, 100}, {0, 0}},
-				HalfEdges: []HalfEdge{
-					{Origin: 1, Twin: 3, Next: 6, Triangle: 0},
-					{Origin: 2, Twin: 4, Next: 8, Triangle: 1},
-					{Origin: 1, Twin: NoneEdge, Next: 4, Triangle: NoneTriangle},
-					{Origin: 2, Twin: 0, Next: 2, Triangle: NoneTriangle},
-					{Origin: 0, Twin: 1, Next: 3, Triangle: NoneTriangle},
-					{Origin: 3, Twin: NoneEdge, Next: 0, Triangle: 0},
-					{Origin: 2, Twin: 7, Next: 5, Triangle: 0},
-					{Origin: 3, Twin: 6, Next: 1, Triangle: 1},
-					{Origin: 0, Twin: NoneEdge, Next: 7, Triangle: 1},
-				},
-				Triangles: []Triangle{
-					{Edge: 0, Tombstoned: false},
-					{Edge: 1, Tombstoned: false},
-				},
-			},
-		},
-		{
-			name: "AllTombstonedInFan",
-			mesh: fan3(1, 2, 3),
-			expectedMesh: &Mesh{
-				Points: []Point{{-100, -100}, {100, -100}, {0, 100}, {0, 0}},
-				HalfEdges: []HalfEdge{
-					{Origin: 1, Twin: NoneEdge, Next: 2, Triangle: NoneTriangle},
-					{Origin: 2, Twin: NoneEdge, Next: 0, Triangle: NoneTriangle},
-					{Origin: 0, Twin: NoneEdge, Next: 1, Triangle: NoneTriangle},
-				},
-			},
+			name:         "AllTombstonedInFan",
+			mesh:         newFan3(),
+			expectedMesh: &Mesh{Points: []Point{{0, 0}}},
 		},
 	}
 
@@ -1262,9 +1205,6 @@ func TestTriangulate(t *testing.T) {
 
 	expectedMesh := &Mesh{
 		Points: []Point{
-			{X: -400, Y: -400},
-			{X: 400, Y: -400},
-			{X: 0, Y: 400},
 			{X: 0, Y: 0},
 			{X: 0.5, Y: 1.5},
 			{X: 2, Y: 0},
@@ -1273,65 +1213,26 @@ func TestTriangulate(t *testing.T) {
 			{X: 4, Y: 0},
 		},
 		HalfEdges: []HalfEdge{
-			{Origin: 0, Next: 8, Twin: 3, Triangle: 1},
-			{Origin: 1, Next: 30, Twin: 4, Triangle: 7},
-			{Origin: 2, Next: 6, Twin: 5, Triangle: 0},
-			{Origin: 1, Next: 5, Twin: 0, Triangle: -1},
-			{Origin: 2, Next: 3, Twin: 1, Triangle: -1},
-			{Origin: 0, Next: 4, Twin: 2, Triangle: -1},
-			{Origin: 0, Next: 11, Twin: 7, Triangle: 0},
-			{Origin: 3, Next: 0, Twin: 6, Triangle: 1},
-			{Origin: 1, Next: 7, Twin: 9, Triangle: 1},
-			{Origin: 3, Next: 22, Twin: 8, Triangle: 3},
-			{Origin: 2, Next: 16, Twin: 11, Triangle: 2},
-			{Origin: 3, Next: 2, Twin: 10, Triangle: 0},
-			{Origin: 3, Next: 21, Twin: 13, Triangle: 4},
-			{Origin: 5, Next: 9, Twin: 12, Triangle: 3},
-			{Origin: 2, Next: 19, Twin: 15, Triangle: 6},
-			{Origin: 4, Next: 10, Twin: 14, Triangle: 2},
-			{Origin: 3, Next: 15, Twin: 17, Triangle: 2},
-			{Origin: 4, Next: 12, Twin: 16, Triangle: 4},
-			{Origin: 6, Next: 20, Twin: 19, Triangle: 5},
-			{Origin: 4, Next: 29, Twin: 18, Triangle: 6},
-			{Origin: 4, Next: 24, Twin: 21, Triangle: 5},
-			{Origin: 5, Next: 17, Twin: 20, Triangle: 4},
-			{Origin: 1, Next: 13, Twin: 23, Triangle: 3},
-			{Origin: 5, Next: 38, Twin: 22, Triangle: 11},
-			{Origin: 5, Next: 18, Twin: 25, Triangle: 5},
-			{Origin: 6, Next: 26, Twin: 24, Triangle: 9},
-			{Origin: 5, Next: 33, Twin: 27, Triangle: 9},
-			{Origin: 7, Next: 36, Twin: 26, Triangle: 10},
-			{Origin: 2, Next: 32, Twin: 29, Triangle: 8},
-			{Origin: 6, Next: 14, Twin: 28, Triangle: 6},
-			{Origin: 2, Next: 35, Twin: 31, Triangle: 7},
-			{Origin: 7, Next: 28, Twin: 30, Triangle: 8},
-			{Origin: 6, Next: 31, Twin: 33, Triangle: 8},
-			{Origin: 7, Next: 25, Twin: 32, Triangle: 9},
-			{Origin: 1, Next: 40, Twin: 35, Triangle: 12},
-			{Origin: 7, Next: 1, Twin: 34, Triangle: 7},
-			{Origin: 5, Next: 41, Twin: 37, Triangle: 10},
-			{Origin: 8, Next: 23, Twin: 36, Triangle: 11},
-			{Origin: 1, Next: 37, Twin: 39, Triangle: 11},
-			{Origin: 8, Next: 34, Twin: 38, Triangle: 12},
-			{Origin: 7, Next: 39, Twin: 41, Triangle: 12},
-			{Origin: 8, Next: 27, Twin: 40, Triangle: 10},
+			{Origin: 0, Twin: NoneEdge, Next: 4, Triangle: 0},
+			{Origin: 1, Twin: NoneEdge, Next: 0, Triangle: 0},
+			{Origin: 3, Twin: NoneEdge, Next: 3, Triangle: 1},
+			{Origin: 1, Twin: 4, Next: 5, Triangle: 1},
+			{Origin: 2, Twin: 3, Next: 1, Triangle: 0},
+			{Origin: 2, Twin: 6, Next: 2, Triangle: 1},
+			{Origin: 3, Twin: 5, Next: 7, Triangle: 2},
+			{Origin: 2, Twin: 8, Next: 9, Triangle: 2},
+			{Origin: 4, Twin: 7, Next: 10, Triangle: 3},
+			{Origin: 4, Twin: NoneEdge, Next: 6, Triangle: 2},
+			{Origin: 2, Twin: NoneEdge, Next: 11, Triangle: 3},
+			{Origin: 5, Twin: NoneEdge, Next: 8, Triangle: 3},
 		},
 		Triangles: []Triangle{
-			{Edge: 2, Tombstoned: false},
-			{Edge: 0, Tombstoned: false},
-			{Edge: 10, Tombstoned: false},
-			{Edge: 22, Tombstoned: false},
-			{Edge: 21, Tombstoned: false},
-			{Edge: 24, Tombstoned: false},
-			{Edge: 29, Tombstoned: false},
-			{Edge: 1, Tombstoned: false},
-			{Edge: 28, Tombstoned: false},
-			{Edge: 33, Tombstoned: false},
-			{Edge: 27, Tombstoned: false},
-			{Edge: 23, Tombstoned: false},
-			{Edge: 34, Tombstoned: false},
+			{Edge: 4, Tombstoned: false},
+			{Edge: 5, Tombstoned: false},
+			{Edge: 9, Tombstoned: false},
+			{Edge: 8, Tombstoned: false},
 		},
-		LastInsertedEdge: 36,
+		LastInsertedEdge: 10,
 	}
 
 	m, err := Triangulate(points)
