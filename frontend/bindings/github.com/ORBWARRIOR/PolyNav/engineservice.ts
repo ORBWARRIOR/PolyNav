@@ -16,9 +16,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // @ts-ignore: Unused imports
 import * as engine$0 from "./engine/models.js";
 
+export function Log(msg: string): $CancellablePromise<void> {
+    return $Call.ByID(2597304415, msg);
+}
+
 /**
  * Triangulate runs Delaunay triangulation and returns a serialisable result.
- * The frontend receives triangles as flat index arrays ready for WebGL / Canvas.
  */
 export function Triangulate(points: engine$0.Point[] | null): $CancellablePromise<engine$0.Mesh | null> {
     return $Call.ByID(1594089315, points);

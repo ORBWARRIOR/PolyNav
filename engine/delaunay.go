@@ -151,17 +151,25 @@ func denormalisePoints(points []Point, scale, minX, minY float64) []Point {
 }
 
 func compact(m *Mesh) {
+	const superTriVerts = 3
+	// Tombstone all triangles sharing a point with a super triangle vertex
+	for _, he := range m.HalfEdges {
+		if he.Origin < superTriVerts && he.Triangle != NoneTriangle {
+			m.Triangles[he.Triangle].Tombstoned = true
+		}
+	}
+
 	// Build the new half edge slice, ignores tombstoned triangles
 	var newEdges []HalfEdge
 	edgesMap := make(map[EdgeID]EdgeID)
 	for oldIdx, ohe := range m.HalfEdges {
 		tID := ohe.Triangle
-		if tID != NoneTriangle && m.Triangles[tID].Tombstoned {
+		if tID != NoneTriangle && m.Triangles[tID].Tombstoned || ohe.Origin < superTriVerts {
 			continue
 		}
-		newIdx := EdgeID(len(newEdges))
+		edgesMap[EdgeID(oldIdx)] = EdgeID(len(newEdges))
+		ohe.Origin -= superTriVerts // Shift VertexIDs down
 		newEdges = append(newEdges, ohe)
-		edgesMap[EdgeID(oldIdx)] = newIdx
 	}
 
 	// Build the new triangle list, ignores tombstoned triangles
@@ -171,9 +179,8 @@ func compact(m *Mesh) {
 		if tri.Tombstoned {
 			continue
 		}
-		newIdx := TriangleID(len(newTriangles))
+		trianglesMap[TriangleID(oldIdx)] = TriangleID(len(newTriangles))
 		newTriangles = append(newTriangles, tri)
-		trianglesMap[TriangleID(oldIdx)] = newIdx
 	}
 
 	// Update half edge pointers
@@ -210,6 +217,7 @@ func compact(m *Mesh) {
 		}
 	}
 
+	m.Points = m.Points[superTriVerts:]
 	m.HalfEdges = newEdges
 	m.Triangles = newTriangles
 	if newLast, ok := edgesMap[m.LastInsertedEdge]; ok {
