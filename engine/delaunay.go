@@ -151,6 +151,13 @@ func denormalisePoints(points []Point, scale, minX, minY float64) []Point {
 }
 
 func compact(m *Mesh) {
+	if len(m.Points) < 6 {
+		m.Points = nil
+		m.HalfEdges = nil
+		m.Triangles = nil
+		return
+	}
+
 	const superTriVerts = 3
 	// Tombstone all triangles sharing a point with a super triangle vertex
 	for _, he := range m.HalfEdges {
