@@ -22,6 +22,9 @@ func NewVoronoiMap(m *Mesh) (*VoronoiMap, error) {
 	if len(m.Triangles) < 2 {
 		return nil, fmt.Errorf("cannot create a voronoi map with less than 2 triangles")
 	}
+	if len(m.HalfEdges) < 4 {
+		return nil, fmt.Errorf("cannot create a voronoi map with less than 4 edges")
+	}
 	voronoiMap := &VoronoiMap{
 		Points:     make([]Point, 0, len(m.Triangles)),
 		Edges:      make([]VoronoiEdge, 0, len(m.HalfEdges)),
@@ -36,10 +39,6 @@ func NewVoronoiMap(m *Mesh) (*VoronoiMap, error) {
 
 // BuildVoronoi computes the Voronoi dual graph iteratively over a Delaunay Mesh.
 func buildVoronoi(m *Mesh, v *VoronoiMap) error {
-	if len(m.HalfEdges) == 0 {
-		return fmt.Errorf("mesh contains no half-edges")
-	}
-
 	numTriangles := len(m.Triangles)
 	circumcenters := make([]Point, numTriangles)
 	validTri := make([]bool, numTriangles)
