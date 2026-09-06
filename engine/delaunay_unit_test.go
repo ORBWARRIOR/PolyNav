@@ -225,33 +225,32 @@ func TestOrient(t *testing.T) {
 	}
 }
 
-func TestCircumcircle(t *testing.T) {
+func TestCircumcenter(t *testing.T) {
 	tests := []struct {
-		name                                  string
-		A, B, C                               Point
-		expectedUx, expectedUy, expectedRSqrd float64
-		expectedSuccess                       bool
+		name                          string
+		A, B, C, expectedCircumcenter Point
+		expectedSuccess               bool
 	}{
 		{"RightAngleTri",
 			Point{X: 0, Y: 0},
 			Point{X: 0, Y: 4},
 			Point{X: 3, Y: 0},
-			1.5, 2, 6.25, true},
+			Point{X: 1.5, Y: 2},
+			true},
 		{"Collinear",
 			Point{X: 0, Y: 0},
 			Point{X: 1, Y: 1},
 			Point{X: 2, Y: 2},
-			0, 0, 0, false},
+			Point{X: 0, Y: 0},
+			false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ux, uy, rSqrd, ok := GetCircumcircle(tt.A, tt.B, tt.C)
+			cc, ok := getCircumcenter(tt.A, tt.B, tt.C)
 			assert(t, "success", tt.name, ok, tt.expectedSuccess)
 			if tt.expectedSuccess {
-				assert(t, "ux", tt.name, ux, tt.expectedUx)
-				assert(t, "uy", tt.name, uy, tt.expectedUy)
-				assert(t, "rSqrd", tt.name, rSqrd, tt.expectedRSqrd)
+				assert(t, "circumcentre", tt.name, cc, tt.expectedCircumcenter)
 			}
 		})
 	}
@@ -262,11 +261,10 @@ func TestCircumcircle(t *testing.T) {
 		B := Point{X: 0, Y: 2}
 		C := Point{X: 2, Y: 0}
 		D := Point{X: 2, Y: 2}
-		expectedUx := 1.0
-		expectedUy := 1.0
-		expectedRSqrd := 2.0
-		ux1, uy1, rSqrd1, ok1 := GetCircumcircle(A, B, C)
-		ux2, uy2, rSqrd2, ok2 := GetCircumcircle(B, C, D)
+		expectedCircumcenter := Point{X: 1, Y: 1}
+
+		cc1, ok1 := getCircumcenter(A, B, C)
+		cc2, ok2 := getCircumcenter(B, C, D)
 
 		if !ok1 {
 			t.Fatalf("failed to get circumcircle for cocircular points A, B, C")
@@ -275,12 +273,8 @@ func TestCircumcircle(t *testing.T) {
 			t.Fatalf("failed to get circumcircle for cocircular points B, C, D")
 		}
 
-		assert(t, "ux1", testName, ux1, expectedUx)
-		assert(t, "uy1", testName, uy1, expectedUy)
-		assert(t, "rSqrd1", testName, rSqrd1, expectedRSqrd)
-		assert(t, "ux2", testName, ux2, expectedUx)
-		assert(t, "uy2", testName, uy2, expectedUy)
-		assert(t, "rSqrd2", testName, rSqrd2, expectedRSqrd)
+		assert(t, "circumcentre1", testName, cc1, expectedCircumcenter)
+		assert(t, "circumcentre2", testName, cc2, expectedCircumcenter)
 	})
 }
 
@@ -414,7 +408,7 @@ func TestCompact(t *testing.T) {
 		{
 			name:         "AllTombstonedInFan",
 			mesh:         newFan3(),
-			expectedMesh: &Mesh{Points: []Point{{0, 0}}},
+			expectedMesh: &Mesh{},
 		},
 	}
 
