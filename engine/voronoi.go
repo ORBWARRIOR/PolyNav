@@ -40,14 +40,13 @@ func buildVoronoi(m *Mesh, v *VoronoiMap) error {
 		return fmt.Errorf("mesh contains no half-edges")
 	}
 
-	numTriangles := len(m.HalfEdges) / 3
+	numTriangles := len(m.Triangles)
 	circumcenters := make([]Point, numTriangles)
 	validTri := make([]bool, numTriangles)
 
 	// Pre-compute circumcenters once per triangle
-	for i := 0; i < len(m.HalfEdges); i += 3 {
-		triID := m.HalfEdges[i].Triangle
-		he1 := m.HalfEdges[i]
+	for i := range numTriangles {
+		he1 := m.HalfEdges[m.Triangles[i].Edge]
 		he2 := m.HalfEdges[he1.Next]
 		he3 := m.HalfEdges[he2.Next]
 
@@ -57,8 +56,8 @@ func buildVoronoi(m *Mesh, v *VoronoiMap) error {
 
 		cc, ok := getCircumcenter(p1, p2, p3)
 		if ok {
-			circumcenters[triID] = cc
-			validTri[triID] = true
+			circumcenters[i] = cc
+			validTri[i] = true
 		}
 	}
 
