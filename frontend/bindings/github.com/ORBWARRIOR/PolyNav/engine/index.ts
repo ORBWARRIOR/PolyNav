@@ -11,5 +11,8 @@ export type {
     HalfEdge,
     Mesh,
     Point,
-    Triangle
+    Triangle,
+    TriangleSet,
+    VoronoiEdge,
+    VoronoiMap
 } from "./models.js";
