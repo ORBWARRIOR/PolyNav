@@ -117,38 +117,38 @@ func getEdgeOppositeP(m *Mesh, seedEdge EdgeID, p VertexID) EdgeID {
 
 // PointInCircumcircle checks whether pt lies inside the circumcircle of (a, b, c).
 func pointInCircumcircle(pt, a, b, c Point) bool {
-	cx, cy, rSqrd, ok := GetCircumcircle(a, b, c)
+	centre, ok := getCircumcenter(a, b, c)
 	if !ok {
 		return false
 	}
+
+	// distance from circumcentre to a
+	dx := centre.X - a.X
+	dy := centre.Y - a.Y
+	// c^2 = a^2 + b^2
+	rSqrd := dx*dx + dy*dy
+
 	// distance from pt to circumcentre
-	dx := pt.X - cx
-	dy := pt.Y - cy
+	dx = pt.X - centre.X
+	dy = pt.Y - centre.Y
 	// if rSqrd > pt's distance^2, it is inside the circumcircle
 	return rSqrd+Epsilon > dx*dx+dy*dy
 }
 
-// GetCircumcircle returns the circumcentre (ux, uy) and squared radius rSqrd
-// for the triangle formed by p1, p2, p3.  ok=false when the points are
-// collinear (denominator ≈ 0).
-func GetCircumcircle(p1, p2, p3 Point) (ux, uy, rSqrd float64, ok bool) {
+// GetCircumcircle returns the circumcentre (ux, uy) for the triangle formed
+// by p1, p2, p3. ok=false when the points are collinear (denominator ≈ 0).
+func getCircumcenter(p1, p2, p3 Point) (Point, bool) {
+	d := 2 * (p1.X*(p2.Y-p3.Y) + p2.X*(p3.Y-p1.Y) + p3.X*(p1.Y-p2.Y))
+	if math.Abs(d) < Epsilon {
+		return Point{}, false
+	}
+
 	p1Sq := p1.X*p1.X + p1.Y*p1.Y
 	p2Sq := p2.X*p2.X + p2.Y*p2.Y
 	p3Sq := p3.X*p3.X + p3.Y*p3.Y
 
-	d := 2 * (p1.X*(p2.Y-p3.Y) + p2.X*(p3.Y-p1.Y) + p3.X*(p1.Y-p2.Y))
-	if math.Abs(d) < Epsilon {
-		return 0, 0, 0, false
-	}
+	ux := (p1Sq*(p2.Y-p3.Y) + p2Sq*(p3.Y-p1.Y) + p3Sq*(p1.Y-p2.Y)) / d
+	uy := (p1Sq*(p3.X-p2.X) + p2Sq*(p1.X-p3.X) + p3Sq*(p2.X-p1.X)) / d
 
-	ux = (p1Sq*(p2.Y-p3.Y) + p2Sq*(p3.Y-p1.Y) + p3Sq*(p1.Y-p2.Y)) / d
-	uy = (p1Sq*(p3.X-p2.X) + p2Sq*(p1.X-p3.X) + p3Sq*(p2.X-p1.X)) / d
-
-	// distance from c to p1
-	dx := ux - p1.X
-	dy := uy - p1.Y
-	// c^2 = a^2 + b^2
-	rSqrd = dx*dx + dy*dy
-
-	return ux, uy, rSqrd, true
+	return Point{X: ux, Y: uy}, true
 }

@@ -31,6 +31,25 @@ type Triangle struct {
 	Tombstoned bool   // Marks this triangle as deleted
 }
 
+type TriangleSet map[TriangleID]struct{}
+
+func NewTriangleSet() TriangleSet {
+	return make(TriangleSet)
+}
+
+func (s TriangleSet) Add(item TriangleID) {
+	s[item] = struct{}{}
+}
+
+func (s TriangleSet) Contains(item TriangleID) bool {
+	_, exists := s[item]
+	return exists
+}
+
+func (s TriangleSet) Remove(item TriangleID) {
+	delete(s, item)
+}
+
 // Mesh is the complete output of a Delaunay triangulation.
 type Mesh struct {
 	Points           []Point    // Normalised input points

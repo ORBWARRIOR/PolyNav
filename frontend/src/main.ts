@@ -1,6 +1,9 @@
 import { WML } from "@wailsio/runtime";
 import { EngineService } from "../bindings/github.com/ORBWARRIOR/PolyNav";
-import type { Mesh } from "../bindings/github.com/ORBWARRIOR/PolyNav/engine";
+import type {
+	Mesh,
+	VoronoiMap,
+} from "../bindings/github.com/ORBWARRIOR/PolyNav/engine";
 
 // Wire up data-wml-openURL links (logos + footer "Docs" link) once the DOM is ready.
 WML.Enable();
@@ -16,8 +19,12 @@ const delStart = document.getElementById("delete-start");
 const delEnd = document.getElementById("delete-end");
 const clear = document.getElementById("clear");
 const triangulate = document.getElementById("triangulate");
+const voronoi = document.getElementById("voronoi");
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
+
+let mesh: Mesh | null;
+let voronoiMap: VoronoiMap | null;
 
 if (
 	!sidebar ||
@@ -30,6 +37,7 @@ if (
 	!delEnd ||
 	!clear ||
 	!triangulate ||
+	!voronoi ||
 	!canvas
 ) {
 	let msg = "Required DOM elements were not found.";
@@ -84,19 +92,19 @@ function drawCanvas() {
 	ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
 	ctx.lineWidth = 0.275;
 
-	for (let x = originX % GRID_SIZE; x < width; x += GRID_SIZE) {
-		ctx.beginPath();
-		ctx.moveTo(x, 0);
-		ctx.lineTo(x, height);
-		ctx.stroke();
-	}
+	// for (let x = originX % GRID_SIZE; x < width; x += GRID_SIZE) {
+	// 	ctx.beginPath();
+	// 	ctx.moveTo(x, 0);
+	// 	ctx.lineTo(x, height);
+	// 	ctx.stroke();
+	// }
 
-	for (let y = originY % GRID_SIZE; y < height; y += GRID_SIZE) {
-		ctx.beginPath();
-		ctx.moveTo(0, y);
-		ctx.lineTo(width, y);
-		ctx.stroke();
-	}
+	// for (let y = originY % GRID_SIZE; y < height; y += GRID_SIZE) {
+	// 	ctx.beginPath();
+	// 	ctx.moveTo(0, y);
+	// 	ctx.lineTo(width, y);
+	// 	ctx.stroke();
+	// }
 
 	ctx.lineWidth = 1;
 	ctx.beginPath();
@@ -215,7 +223,7 @@ function drawMesh(m: Mesh) {
 		if (!m.Points || !m.HalfEdges) return;
 		const origin = m.Points[halfEdge.Origin];
 		const next = m.Points[m.HalfEdges[halfEdge.Next].Origin];
-		ctx.strokeStyle = "rgb(131, 131, 131)";
+		ctx.strokeStyle = "rgb(248, 112, 112)";
 		ctx.beginPath();
 		ctx.moveTo(origin.X, origin.Y);
 		ctx.lineTo(next.X, next.Y);
@@ -226,10 +234,32 @@ function drawMesh(m: Mesh) {
 triangulate.addEventListener("click", async () => {
 	if (obstaclesPoints.length < 3) return;
 	try {
-		const mesh = await EngineService.Triangulate(obstaclesPoints);
+		mesh = await EngineService.Triangulate(obstaclesPoints);
 		if (mesh) drawMesh(mesh);
 	} catch (err: unknown) {
 		EngineService.Log(`Failed to triangulate: ${err}`);
+	}
+});
+
+function drawVoronoi(v: VoronoiMap) {
+	if (!v.Edges) return;
+	v.Edges.forEach((edge) => {
+		ctx.strokeStyle = "#e0e0e0";
+		ctx.beginPath();
+		ctx.moveTo(edge.Tail.X, edge.Tail.Y);
+		ctx.lineTo(edge.Head.X, edge.Head.Y);
+		ctx.stroke();
+	});
+}
+
+voronoi.addEventListener("click", async () => {
+	try {
+		mesh = await EngineService.Triangulate(obstaclesPoints);
+		if (mesh) drawMesh(mesh);
+		voronoiMap = await EngineService.ConstructVoronoi(mesh);
+		if (voronoiMap) drawVoronoi(voronoiMap);
+	} catch (err: unknown) {
+		EngineService.Log(`Failed to construct voronoi map: ${err}`);
 	}
 });
 

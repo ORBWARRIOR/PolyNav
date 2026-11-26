@@ -97,6 +97,8 @@ export enum TriangleID {
     NoneTriangle = -1,
 };
 
+export type TriangleSet = { [_ in TriangleID]?: {} } | null;
+
 export enum VertexID {
     /**
      * The Go zero value for the underlying type of the enum.
@@ -105,3 +107,15 @@ export enum VertexID {
 
     NoneVertex = -1,
 };
+
+export interface VoronoiEdge {
+    "Tail": Point;
+    "Head": Point;
+    "Weight": number;
+}
+
+export interface VoronoiMap {
+    "Points": Point[] | null;
+    "Edges": VoronoiEdge[] | null;
+    "VisitedTri": TriangleSet;
+}

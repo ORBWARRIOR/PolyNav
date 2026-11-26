@@ -16,6 +16,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // @ts-ignore: Unused imports
 import * as engine$0 from "./engine/models.js";
 
+export function ConstructVoronoi(m: engine$0.Mesh | null): $CancellablePromise<engine$0.VoronoiMap | null> {
+    return $Call.ByID(1232471322, m);
+}
+
 export function Log(msg: string): $CancellablePromise<void> {
     return $Call.ByID(2597304415, msg);
 }
