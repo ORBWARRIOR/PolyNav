@@ -98,7 +98,7 @@ func buildVoronoi(m *Mesh, v *VoronoiMap) error {
 		dx := p1.X - p2.X
 		dy := p1.Y - p2.Y
 		distSq := dx*dx + dy*dy
-
+		// math.Hypot()
 		weight := math.Sqrt(distSq)
 		v.Edges = append(v.Edges, VoronoiEdge{
 			Tail:   p1,

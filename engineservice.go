@@ -19,3 +19,8 @@ func (g *EngineService) Log(msg string) {
 func (s *EngineService) Triangulate(points []engine.Point) (*engine.Mesh, error) {
 	return engine.Triangulate(points)
 }
+
+func (s *EngineService) ConstructVoronoi(m *engine.Mesh) (*engine.VoronoiMap, error) {
+	v, err := engine.NewVoronoiMap(m)
+	return v, err
+}
